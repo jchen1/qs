@@ -1,7 +1,7 @@
 # Todo
 
 - [ ] DB
-  - [ ] probably postgres?
+  - [ ] postgres
 - [ ] OAuth
   - [ ] web route
   - [ ] read client id/secrets from env/txt file
