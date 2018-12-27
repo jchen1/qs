@@ -1,0 +1,39 @@
+# Todo
+
+- [ ] DB
+  - [ ] probably postgres?
+- [ ] OAuth
+  - [ ] web route
+  - [ ] read client id/secrets from env/txt file
+  - [ ] save tokens
+- [ ] data ingest
+  - [ ] Fitbit API
+    - [ ] weight
+    - [ ] sleep
+    - [ ] body fat
+    - [ ] exercise/steps
+    - [ ] cals burned
+    - [ ] historical data
+  - [ ] google
+    - [ ] location?
+  - [ ] github
+    - [ ] commit activity
+  - [ ] last.fm
+    - [ ] music
+  - [ ] oral-b
+    - [ ] bluetooth le app (lol)
+    - [ ] reverse-engineer their API?
+  - [ ] philips hue
+    - [ ] ?
+  - [ ] manual logs
+    - [ ] workouts
+    - [ ] videos?
+    - [ ] medical data?
+- [ ] frontend
+  - [ ] graphql endpoint
+  - [ ] react??? vue?????? webgl?!?!?!?!
+  - [ ] dataviz
+    - [ ] ...
+- [ ] deploy
+  - [ ] digitalocean? (already have a box)
+  - [ ] google cloud? (free)
