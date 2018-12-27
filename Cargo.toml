@@ -1,0 +1,8 @@
+[package]
+name = "qs"
+version = "0.1.0"
+authors = ["Jeff Chen <hello@jeff.yt>"]
+edition = "2018"
+
+[dependencies]
+actix-web = "0.7"
