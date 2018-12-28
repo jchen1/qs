@@ -2,9 +2,9 @@
 
 - [ ] DB
   - [ ] postgres
-- [ ] OAuth
-  - [ ] web route
-  - [ ] read client id/secrets from env/txt file
+- [X] OAuth
+  - [X] web route
+  - [X] read client id/secrets from env/txt file
   - [ ] save tokens
 - [ ] data ingest
   - [ ] Fitbit API
