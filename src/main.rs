@@ -6,6 +6,7 @@ extern crate diesel;
 extern crate actix;
 extern crate actix_web;
 extern crate listenfd;
+extern crate futures;
 extern crate reqwest;
 extern crate url;
 extern crate hyper;
@@ -13,21 +14,21 @@ extern crate base64;
 extern crate uuid;
 extern crate r2d2;
 
-mod oauth;
-mod db;
+pub mod oauth;
+pub mod db;
 
 use listenfd::ListenFd;
 use actix::prelude::*;
-use actix_web::{http::Method, middleware, server, App, HttpRequest};
+use actix_web::{http::Method, middleware, server, App, HttpRequest, State};
 use diesel::prelude::*;
 use diesel::r2d2::ConnectionManager;
 
 /// State with DbExecutor address
-struct AppState {
+pub struct AppState {
     db: Addr<db::DbExecutor>,
 }
 
-fn index(_req: &HttpRequest) -> &'static str {
+fn index(state: State<AppState>) -> &'static str {
     "Hello world!"
 }
 
@@ -52,7 +53,7 @@ fn main() {
     let mut server = server::new(move || {
         App::with_state(AppState{db: addr.clone()})
             .middleware(middleware::Logger::default())
-            // .resource("/", |r| r.f(index))
+            .resource("/", |r| r.method(Method::GET).with(index))
             .resource("/oauth/{service}/start", |r| r.method(Method::GET).with(oauth::oauth_start))
             .resource("/oauth/{service}/callback", |r| r.method(Method::GET).with(oauth::oauth_callback))
     });
@@ -64,4 +65,5 @@ fn main() {
     };
 
     server.run();
+    sys.run();
 }

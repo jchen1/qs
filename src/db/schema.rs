@@ -1,18 +1,18 @@
 table! {
     tokens (id) {
-        id -> Text,
-        user_id -> Nullable<Text>,
+        id -> Uuid,
+        user_id -> Uuid,
         service -> Text,
         service_userid -> Text,
         access_token -> Text,
-        access_token_expiry -> Timestamp,
+        access_token_expiry -> Timestamptz,
         refresh_token -> Text,
     }
 }
 
 table! {
     users (id) {
-        id -> Text,
+        id -> Uuid,
         email -> Text,
     }
 }

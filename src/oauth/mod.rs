@@ -1,9 +1,14 @@
 mod fitbit;
 
-use actix_web::{http::header, HttpResponse, Path, Query};
+use actix_web::{AsyncResponder, http::header, FutureResponse, HttpResponse, Path, Query, State};
 use url::percent_encoding::{utf8_percent_encode, DEFAULT_ENCODE_SET};
 use std::collections::HashMap;
 use chrono::{DateTime, Utc};
+use futures::{Future, future::result};
+use uuid::Uuid;
+
+use super::AppState;
+use super::db::{CreateToken};
 
 #[derive(Serialize)]
 pub struct OAuthToken {
@@ -48,7 +53,7 @@ pub fn oauth_start(service: Path<String>) -> HttpResponse {
     }
 }
 
-pub fn oauth_callback(service: Path<(String)>, query: Query<HashMap<String, String>>) -> HttpResponse {
+pub fn oauth_callback(state: State<AppState>, service: Path<(String)>, query: Query<HashMap<String, String>>) -> FutureResponse<HttpResponse> {
     let token = match query.get("code") {
         Some(c) => match service.into_inner().as_str() {
             "fitbit" => fitbit::oauth_flow(c),
@@ -58,8 +63,24 @@ pub fn oauth_callback(service: Path<(String)>, query: Query<HashMap<String, Stri
     };
 
     match token {
-        Ok(t) => HttpResponse::Ok().json(t),
+        Ok(t) => {
+            state.db.send(CreateToken {
+                access_token: t.access_token,
+                access_token_expiry: t.expiration,
+                refresh_token: t.refresh_token,
+                service: String::from("fitbit"),
+                service_userid: t.user_id,
+                // LOL
+                user_id: Uuid::parse_str("21415c9a-47b1-4a8e-acef-565f9e5dc043").unwrap()
+            })
+            .from_err()
+            .and_then(|res| match res {
+                Ok(token) => Ok(HttpResponse::Ok().json(token)),
+                Err(e) => Ok(HttpResponse::InternalServerError().body(e.to_string()))
+            })
+            .responder()
+        },
         // todo use the error
-        Err(_e) => HttpResponse::BadRequest().body("Bad request")
+        Err(_e) => Box::new(result::<HttpResponse, actix_web::Error>(Ok(HttpResponse::BadRequest().body("Bad request"))))
     }
 }
