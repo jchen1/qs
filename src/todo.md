@@ -1,11 +1,11 @@
 # Todo
 
-- [ ] DB
-  - [ ] postgres
+- [x] DB
+  - [x] postgres
 - [X] OAuth
   - [X] web route
   - [X] read client id/secrets from env/txt file
-  - [ ] save tokens
+  - [x] save tokens
 - [ ] data ingest
   - [ ] Fitbit API
     - [ ] weight
