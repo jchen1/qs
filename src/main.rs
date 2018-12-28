@@ -1,27 +1,58 @@
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate diesel;
 
+extern crate actix;
 extern crate actix_web;
 extern crate listenfd;
 extern crate reqwest;
 extern crate url;
 extern crate hyper;
 extern crate base64;
+extern crate uuid;
+extern crate r2d2;
 
 mod oauth;
+mod db;
 
 use listenfd::ListenFd;
-use actix_web::{http::Method, server, App, HttpRequest};
+use actix::prelude::*;
+use actix_web::{http::Method, middleware, server, App, HttpRequest};
+use diesel::prelude::*;
+use diesel::r2d2::ConnectionManager;
+
+/// State with DbExecutor address
+struct AppState {
+    db: Addr<db::DbExecutor>,
+}
 
 fn index(_req: &HttpRequest) -> &'static str {
     "Hello world!"
 }
 
 fn main() {
+    dotenv::dotenv().ok();
+    let db_url = match dotenv::var("DATABASE_URL") {
+        Ok(url) => url,
+        Err(_e) => unimplemented!()
+    };
+
+    let sys = actix::System::new("qs");
+
+    // Start 3 db executor actors
+    let manager = ConnectionManager::<PgConnection>::new(db_url);
+    let pool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create pool.");
+
+    let addr = SyncArbiter::start(3, move || db::DbExecutor(pool.clone()));
+
     let mut listenfd = ListenFd::from_env();
-    let mut server = server::new(|| {
-        App::new()
-            .resource("/", |r| r.f(index))
+    let mut server = server::new(move || {
+        App::with_state(AppState{db: addr.clone()})
+            .middleware(middleware::Logger::default())
+            // .resource("/", |r| r.f(index))
             .resource("/oauth/{service}/start", |r| r.method(Method::GET).with(oauth::oauth_start))
             .resource("/oauth/{service}/callback", |r| r.method(Method::GET).with(oauth::oauth_callback))
     });
