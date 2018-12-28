@@ -1,3 +1,5 @@
+#![allow(proc_macro_derive_resolution_fallback)]
+
 use super::schema::{users, tokens};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;

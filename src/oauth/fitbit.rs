@@ -29,14 +29,14 @@ impl From<FitbitCallbackResponse> for OAuthToken {
     }
 }
 
-pub fn redirect() -> String {
+pub fn redirect() -> Result<String, OAuthError> {
     let scopes = ["activity", "heartrate", "location", "profile", "sleep", "weight"].join(" ");
-    format!("https://www.fitbit.com/oauth2/authorize?response_type=code&client_id={}&redirect_uri={}&scope={}&expires_in={}",
+    Ok(format!("https://www.fitbit.com/oauth2/authorize?response_type=code&client_id={}&redirect_uri={}&scope={}&expires_in={}",
         urlencode(FITBIT_CLIENT_ID),
         urlencode(FITBIT_REDIRECT_URI),
         urlencode(&scopes),
         // 1 hour
-        FITBIT_EXPIRATION_MS)
+        FITBIT_EXPIRATION_MS))
 }
 
 pub fn oauth_flow(code: &str) -> Result<OAuthToken, OAuthError> {

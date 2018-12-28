@@ -6,6 +6,9 @@
   - [X] web route
   - [X] read client id/secrets from env/txt file
   - [x] save tokens
+- [ ] user authentication/authorization
+  - [ ] google/github oauth?
+- [ ] graphql
 - [ ] data ingest
   - [ ] Fitbit API
     - [ ] weight
@@ -30,8 +33,7 @@
     - [ ] videos?
     - [ ] medical data?
 - [ ] frontend
-  - [ ] graphql endpoint
-  - [ ] react??? vue?????? webgl?!?!?!?!
+  - [ ] react
   - [ ] dataviz
     - [ ] ...
 - [ ] deploy
