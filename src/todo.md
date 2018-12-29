@@ -8,7 +8,7 @@
   - [x] save tokens
 - [ ] user authentication/authorization
   - [ ] google/github oauth?
-- [ ] graphql
+- [x] graphql
 - [ ] data ingest
   - [ ] Fitbit API
     - [ ] weight

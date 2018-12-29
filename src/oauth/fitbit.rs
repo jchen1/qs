@@ -54,7 +54,5 @@ pub fn oauth_flow(code: &str) -> Result<OAuthToken, OAuthError> {
         .send()?;
     
     let parsed: FitbitCallbackResponse = request.json()?;
-    let token = OAuthToken::from(parsed);
-
-    Ok(token)
+    Ok(OAuthToken::from(parsed))
 }

@@ -64,7 +64,7 @@ fn main() {
         App::with_state(AppState{db: db_addr.clone(), graphql: graphql_addr.clone()})
             .middleware(middleware::Logger::default())
             .resource("/", |r| r.method(Method::GET).with(index))
-            .resource("/oauth/{service}/start", |r| r.method(Method::GET).with(oauth::oauth_start))
+            .resource("/oauth/{service}/start", |r| r.method(Method::GET).with(oauth::start_oauth_route))
             .resource("/oauth/{service}/callback", |r| r.method(Method::GET).with(oauth::oauth_callback))
             .resource("/graphql", |r| r.method(Method::POST).with(graphql::graphql))
             .resource("/graphiql", |r| r.method(Method::GET).h(graphql::graphiql))

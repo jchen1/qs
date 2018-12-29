@@ -12,7 +12,7 @@ pub struct GoogleCallbackResponse {
     access_token: String,
     id_token: String,
     expires_in: u32,
-    refresh_token: String,
+    refresh_token: Option<String>,
     scope: String
 }
 
@@ -21,8 +21,12 @@ impl From<GoogleCallbackResponse> for OAuthToken {
         OAuthToken {
             service: "google".to_string(),
             access_token: gcr.access_token,
-            refresh_token: gcr.refresh_token,
-            // TODO decode JWT
+            refresh_token: match gcr.refresh_token {
+                Some(token) => token,
+                // TODO throw an error? idk 
+                None => "".to_string()
+            },
+            // TODO decode the JWT
             user_id: gcr.id_token,
             scopes: gcr.scope.split(" ").map(String::from).collect(),
             expiration: Utc::now() + Duration::seconds(gcr.expires_in as i64)

@@ -1,5 +1,5 @@
-mod fitbit;
-mod google;
+pub mod fitbit;
+pub mod google;
 
 use actix_web::{AsyncResponder, http::header, FutureResponse, HttpResponse, Path, Query, State};
 use url::percent_encoding::{utf8_percent_encode, DEFAULT_ENCODE_SET};
@@ -45,13 +45,16 @@ fn urlencode(to_encode: &str) -> String {
   utf8_percent_encode(to_encode, DEFAULT_ENCODE_SET).to_string()
 }
 
-pub fn oauth_start(service: Path<String>) -> HttpResponse {
-    let redirect_url = match service.into_inner().as_str() {
+pub fn start_oauth(service: String) -> Result<String, OAuthError> {
+    match service.as_str() {
         "fitbit" => fitbit::redirect(),
         "google" => google::redirect(),
         _ => Err(OAuthError::Error(String::from("Bad service")))
-    };
+    }
+}
 
+pub fn start_oauth_route(service: Path<String>) -> HttpResponse {
+    let redirect_url = start_oauth(service.into_inner());
     match redirect_url {
         Ok(url) => HttpResponse::Found().header(header::LOCATION, url).finish(),
         Err(_) => HttpResponse::BadRequest().body("Bad request")
