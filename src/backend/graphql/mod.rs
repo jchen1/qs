@@ -72,7 +72,7 @@ pub fn graphiql(_req: &HttpRequest<AppState>) -> Result<HttpResponse, Error> {
 pub fn graphql(req: &HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
     let req = req.clone();
     let executor = req.state().graphql.clone();
-    let user_id = Uuid::parse_str(&req.identity().unwrap()).ok();
+    let user_id = req.identity().and_then(|id| Uuid::parse_str(&id).ok());
 
     req.json()
        .from_err()

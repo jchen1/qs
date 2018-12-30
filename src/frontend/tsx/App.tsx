@@ -13,9 +13,10 @@ const User = () => (
   <Query
     query={gql`
       {
-        user(id: "lol") {
+        user {
           id
           email
+          gSub
         }
       }
     `}
@@ -24,7 +25,12 @@ const User = () => (
       if (loading) return <p>Loading...</p>;
       if (error) return <p>Error :(</p>;
 
-      return <div><p>{`${data.user.id}: ${data.user.email}`}</p></div>;
+      const { user } = data;
+      if (user) return <div>
+        <p>{`${data.user.id}: ${data.user.email}`}</p>
+        <a href="oauth/fitbit/start">Fitbit</a>
+      </div>;
+      return <div><p>Anonymous - <a href="oauth/google/start">Login</a></p></div>
     }}
   </Query>
 );
@@ -39,8 +45,6 @@ class App extends Component {
       <ApolloProvider client={client}>
         <StyledApp>
           <User />
-          <a href="oauth/google/start">Google</a>
-          <a href="oauth/fitbit/start">Fitbit</a>
         </StyledApp>
       </ApolloProvider>
     );
