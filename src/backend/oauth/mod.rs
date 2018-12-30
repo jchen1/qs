@@ -11,7 +11,7 @@ use futures::{Future, future::{ok, result}};
 use uuid::Uuid;
 
 use super::AppState;
-use crate::db::{CreateToken, DbExecutor, UpsertUser};
+use crate::db::{UpsertToken, DbExecutor, UpsertUser};
 
 #[derive(Serialize)]
 pub struct OAuthToken {
@@ -115,7 +115,7 @@ pub fn oauth_callback(req: &HttpRequest<AppState>) -> FutureResponse<HttpRespons
             .and_then(move |user_id| {
                 req.remember(user_id.clone());
                 info!("{}, {:?}", user_id, req.identity());
-                db.send(CreateToken {
+                db.send(UpsertToken {
                     access_token: t.access_token,
                     access_token_expiry: t.expiration,
                     refresh_token: t.refresh_token,
