@@ -36,6 +36,8 @@ class App extends Component {
       <ApolloProvider client={client}>
         <div className="App">
           <User />
+          <a href="oauth/google/start">Google</a>
+          <a href="oauth/fitbit/start">Fitbit</a>
         </div>
       </ApolloProvider>
     );

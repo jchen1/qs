@@ -17,9 +17,16 @@
     "typescript": "^3.2.2"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
+    "start-frontend": "BROWSER=NONE PORT=8080 react-scripts start",
+    "build-frontend": "react-scripts build",
+    "test-frontend": "react-scripts test",
+    "start-backend": "RUST_BACKTRACE=1 systemfd --no-pid -s http::8081 -- cargo watch -x run",
+    "build-backend": "cargo build",
+    "clean-backend": "rm -rf target",
+    "migrate": "diesel migrations run",
+    "dropdb": "diesel database reset",
+    "start": "concurrently --kill-others \"npm run start-frontend\" \"npm run start-backend\"",
+    "build": "npm run build-backend && npm run build-frontend",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -31,5 +38,8 @@
     "not dead",
     "not ie <= 11",
     "not op_mini all"
-  ]
+  ],
+  "devDependencies": {
+    "concurrently": "^4.1.0"
+  }
 }
