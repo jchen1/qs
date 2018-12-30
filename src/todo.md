@@ -34,6 +34,8 @@
     - [ ] medical data?
 - [ ] frontend
   - [x] react
+  - [ ] design
+    - [ ] font (https://rsms.me/inter/)
   - [ ] dataviz
     - [ ] ...
 - [ ] deploy

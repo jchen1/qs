@@ -1,7 +1,7 @@
 use juniper::{FieldResult, RootNode};
 use uuid::Uuid;
 
-use super::super::oauth;
+use crate::oauth;
 
 #[derive(GraphQLObject)]
 #[graphql(description = "A user")]

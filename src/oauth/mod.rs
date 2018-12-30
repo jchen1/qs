@@ -11,7 +11,7 @@ use futures::{Future, future::{ok, result}};
 use uuid::Uuid;
 
 use super::AppState;
-use super::db::{CreateToken, DbExecutor, UpsertUser};
+use crate::db::{CreateToken, DbExecutor, UpsertUser};
 
 #[derive(Serialize)]
 pub struct OAuthToken {
