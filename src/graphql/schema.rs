@@ -1,5 +1,4 @@
-use juniper::FieldResult;
-use juniper::RootNode;
+use juniper::{FieldResult, RootNode};
 use uuid::Uuid;
 
 use super::super::oauth;
@@ -21,11 +20,11 @@ struct NewUser {
 pub struct QueryRoot;
 
 graphql_object!(QueryRoot: () |&self| {
-    field user(&executor, id: String) -> FieldResult<User> {
-        Ok(User{
+    field user(&executor, id: String) -> User {
+        User{
             id: Uuid::new_v4(),
             email: "hello@jeff.yt".to_owned()
-        })
+        }
     }
 
     field OAuthServiceURL(&executor, service: String) -> FieldResult<String> {
@@ -33,7 +32,7 @@ graphql_object!(QueryRoot: () |&self| {
 
         match uri {
             Ok(uri) => Ok(uri),
-            Err(_e) => Err(juniper::FieldError::new("Bad service", graphql_value!({ "error": "Service unimplemented" })))
+            Err(_e) => Err("Service unimplemented".to_owned())?
         }
     }
 });

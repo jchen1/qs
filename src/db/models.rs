@@ -8,6 +8,7 @@ use uuid::Uuid;
 pub struct User {
     pub id: Uuid,
     pub email: String,
+    pub g_str: String
 }
 
 #[derive(Insertable)]
@@ -15,6 +16,7 @@ pub struct User {
 pub struct NewUser<'a> {
     pub id: &'a Uuid,
     pub email: &'a str,
+    pub g_sub: &'a str
 }
 
 #[derive(Serialize, Queryable)]

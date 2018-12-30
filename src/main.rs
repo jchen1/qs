@@ -3,6 +3,7 @@ extern crate serde_derive;
 #[macro_use]
 extern crate diesel;
 #[macro_use] extern crate juniper;
+#[macro_use] extern crate log;
 
 extern crate actix;
 extern crate actix_web;
@@ -18,11 +19,14 @@ extern crate r2d2;
 
 pub mod oauth;
 pub mod db;
+mod middlewares;
 pub mod graphql;
 
 use listenfd::ListenFd;
 use actix::prelude::*;
 use actix_web::{http::Method, middleware, fs::NamedFile, server, App, State};
+use actix_web::middleware::session::{SessionStorage, CookieSessionBackend};
+use actix_web::middleware::identity::{CookieIdentityPolicy, IdentityService};
 use diesel::prelude::*;
 use diesel::r2d2::ConnectionManager;
 
@@ -38,12 +42,17 @@ fn index(_state: State<AppState>) -> Result<NamedFile, actix_web::Error> {
 
 fn main() {
     dotenv::dotenv().ok();
-    std::env::set_var("RUST_LOG", "actix_web=info");
+    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
     let db_url = match dotenv::var("DATABASE_URL") {
         Ok(url) => url,
         Err(_e) => unimplemented!()
+    };
+
+    let cookie_key = match dotenv::var("JWT_ISSUE") {
+        Ok(token) => token,
+        Err(_e) => String::from(" ".repeat(32))
     };
 
     let sys = actix::System::new("qs");
@@ -63,9 +72,12 @@ fn main() {
     let mut server = server::new(move || {
         App::with_state(AppState{db: db_addr.clone(), graphql: graphql_addr.clone()})
             .middleware(middleware::Logger::default())
+            // TODO secure: true on prod
+            .middleware(SessionStorage::new(CookieSessionBackend::signed(cookie_key.as_bytes()).secure(false).http_only(true)))
+            .middleware(IdentityService::new(CookieIdentityPolicy::new(cookie_key.as_bytes()).name("auth").secure(false)))
             .resource("/", |r| r.method(Method::GET).with(index))
-            .resource("/oauth/{service}/start", |r| r.method(Method::GET).with(oauth::start_oauth_route))
-            .resource("/oauth/{service}/callback", |r| r.method(Method::GET).with(oauth::oauth_callback))
+            .resource("/oauth/{service}/start", |r| r.method(Method::GET).f(oauth::start_oauth_route))
+            .resource("/oauth/{service}/callback", |r| r.method(Method::GET).f(oauth::oauth_callback))
             .resource("/graphql", |r| r.method(Method::POST).with(graphql::graphql))
             .resource("/graphiql", |r| r.method(Method::GET).h(graphql::graphiql))
     });

@@ -1,6 +1,9 @@
+extern crate jsonwebtoken;
+
 use chrono::{Utc};
 use time::Duration;
 use uuid::Uuid;
+use jsonwebtoken::{dangerous_unsafe_decode, TokenData};
 
 pub static GOOGLE_CLIENT_ID: &'static str = "820579007787-k29hdg84c8170kp4k60jdgj2soncluau.apps.googleusercontent.com";
 pub static GOOGLE_REDIRECT_URI: &'static str = "http://localhost:8080/oauth/google/callback";
@@ -16,8 +19,18 @@ pub struct GoogleCallbackResponse {
     scope: String
 }
 
+#[derive(Deserialize)]
+struct GoogleProfileClaims {
+    // TODO: use the access token hash to verify
+    // at_hash: String,
+    email: String,
+    sub: String
+}
+
 impl From<GoogleCallbackResponse> for OAuthToken {
     fn from(gcr: GoogleCallbackResponse) -> Self {
+        let TokenData { claims, .. } = dangerous_unsafe_decode::<GoogleProfileClaims>(&gcr.id_token).expect("Bad Google response!");
+
         OAuthToken {
             service: "google".to_string(),
             access_token: gcr.access_token,
@@ -26,8 +39,8 @@ impl From<GoogleCallbackResponse> for OAuthToken {
                 // TODO throw an error? idk 
                 None => "".to_string()
             },
-            // TODO decode the JWT
-            user_id: gcr.id_token,
+            user_id: claims.sub,
+            email: Some(claims.email),
             scopes: gcr.scope.split(" ").map(String::from).collect(),
             expiration: Utc::now() + Duration::seconds(gcr.expires_in as i64)
         }

@@ -52,9 +52,9 @@ pub fn graphql(
         .send(data.0)
         .from_err()
         .and_then(|res| match res {
-            Ok(user) => Ok(HttpResponse::Ok()
+            Ok(data) => Ok(HttpResponse::Ok()
                 .content_type("application/json")
-                .body(user)),
+                .body(data)),
             Err(_) => Ok(HttpResponse::InternalServerError().into()),
         })
         .responder()

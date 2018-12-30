@@ -24,6 +24,7 @@ impl From<FitbitCallbackResponse> for OAuthToken {
             refresh_token: fcr.refresh_token,
             user_id: fcr.user_id,
             scopes: fcr.scope.split(" ").map(String::from).collect(),
+            email: None,
             expiration: Utc::now() + Duration::seconds(fcr.expires_in as i64)
         }
     }
