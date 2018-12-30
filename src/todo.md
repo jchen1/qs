@@ -6,8 +6,8 @@
   - [X] web route
   - [X] read client id/secrets from env/txt file
   - [x] save tokens
-- [ ] user authentication/authorization
-  - [ ] google/github oauth?
+- [x] user authentication/authorization
+  - [x] google/github oauth?
 - [x] graphql
 - [ ] data ingest
   - [ ] Fitbit API
@@ -33,7 +33,7 @@
     - [ ] videos?
     - [ ] medical data?
 - [ ] frontend
-  - [ ] react
+  - [x] react
   - [ ] dataviz
     - [ ] ...
 - [ ] deploy
