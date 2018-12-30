@@ -1,6 +1,5 @@
 import React, { Component } from 'react';
-import logo from '../logo.svg';
-import '../scss/App.css';
+import styled from 'styled-components';
 
 import ApolloClient from "apollo-boost";
 import { Query, ApolloProvider } from "react-apollo";
@@ -30,15 +29,19 @@ const User = () => (
   </Query>
 );
 
+const StyledApp = styled.div`
+  text-align: center;
+`;
+
 class App extends Component {
   render() {
     return (
       <ApolloProvider client={client}>
-        <div className="App">
+        <StyledApp>
           <User />
           <a href="oauth/google/start">Google</a>
           <a href="oauth/fitbit/start">Fitbit</a>
-        </div>
+        </StyledApp>
       </ApolloProvider>
     );
   }
