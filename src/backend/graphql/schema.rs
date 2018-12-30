@@ -2,28 +2,25 @@ use juniper::{FieldResult, RootNode};
 use uuid::Uuid;
 
 use crate::oauth;
-
-#[derive(GraphQLObject)]
-#[graphql(description = "A user")]
-struct User {
-    id: Uuid,
-    email: String,
-}
+use super::Context;
+use crate::db::models::{User};
 
 #[derive(GraphQLInputObject)]
 #[graphql(description = "A user")]
 struct NewUser {
     id: Uuid,
     email: String,
+    g_sub: String
 }
 
 pub struct QueryRoot;
 
-graphql_object!(QueryRoot: () |&self| {
-    field user(&executor, id: String) -> User {
-        User{
-            id: Uuid::new_v4(),
-            email: "hello@jeff.yt".to_owned()
+graphql_object!(QueryRoot: Context |&self| {
+
+    field user(&executor, id: Option<String>) -> FieldResult<Option<User>> {
+        match id {
+            Some(id) => Ok(User::find_one(&executor.context().conn, Uuid::parse_str(&id)?).ok()),
+            None => Ok(executor.context().user.clone())
         }
     }
 
@@ -39,11 +36,12 @@ graphql_object!(QueryRoot: () |&self| {
 
 pub struct MutationRoot;
 
-graphql_object!(MutationRoot: () |&self| {
+graphql_object!(MutationRoot: Context |&self| {
     field create_user(&executor, new_user: NewUser) -> FieldResult<User> {
         Ok(User{
             id: Uuid::new_v4(),
-            email: new_user.email
+            email: new_user.email,
+            g_sub: new_user.g_sub
         })
     }
 

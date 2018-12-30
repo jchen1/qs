@@ -27,8 +27,6 @@ use actix::prelude::*;
 use actix_web::{http::Method, middleware, fs::NamedFile, server, App, State};
 use actix_web::middleware::session::{SessionStorage, CookieSessionBackend};
 use actix_web::middleware::identity::{CookieIdentityPolicy, IdentityService};
-use diesel::prelude::*;
-use diesel::r2d2::ConnectionManager;
 
 /// State with DbExecutor address
 pub struct AppState {
@@ -58,15 +56,13 @@ fn main() {
     let sys = actix::System::new("qs");
 
     // Start 3 db executor actors
-    let manager = ConnectionManager::<PgConnection>::new(db_url);
-    let pool = r2d2::Pool::builder()
-        .build(manager)
-        .expect("Failed to create pool.");
+    let pool = db::init_pool(db_url);
+    let graphql_pool = pool.clone();
 
     let db_addr = SyncArbiter::start(3, move || db::DbExecutor(pool.clone()));
 
     let schema = std::sync::Arc::new(graphql::schema::create_schema());
-    let graphql_addr = SyncArbiter::start(3, move || graphql::GraphQLExecutor::new(schema.clone()));
+    let graphql_addr = SyncArbiter::start(3, move || graphql::GraphQLExecutor::new(schema.clone(), graphql_pool.clone()));
 
     let mut listenfd = ListenFd::from_env();
     let mut server = server::new(move || {
@@ -78,7 +74,7 @@ fn main() {
             .resource("/", |r| r.method(Method::GET).with(index))
             .resource("/oauth/{service}/start", |r| r.method(Method::GET).f(oauth::start_oauth_route))
             .resource("/oauth/{service}/callback", |r| r.method(Method::GET).f(oauth::oauth_callback))
-            .resource("/graphql", |r| r.method(Method::POST).with(graphql::graphql))
+            .resource("/graphql", |r| r.method(Method::POST).f(graphql::graphql))
             .resource("/graphiql", |r| r.method(Method::GET).h(graphql::graphiql))
     });
 

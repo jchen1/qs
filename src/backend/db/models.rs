@@ -1,14 +1,17 @@
 #![allow(proc_macro_derive_resolution_fallback)]
 
+use diesel::pg::PgConnection;
+use diesel::prelude::*;
 use super::schema::{users, tokens};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-#[derive(Serialize, Queryable)]
+#[derive(Debug, Clone, GraphQLObject, Serialize, Queryable)]
+#[graphql(description = "A user")]
 pub struct User {
     pub id: Uuid,
     pub email: String,
-    pub g_str: String
+    pub g_sub: String
 }
 
 #[derive(Insertable)]
@@ -17,6 +20,12 @@ pub struct NewUser<'a> {
     pub id: &'a Uuid,
     pub email: &'a str,
     pub g_sub: &'a str
+}
+
+impl User {
+    pub fn find_one(conn: &PgConnection, id: Uuid) -> Result<User, diesel::result::Error> {
+        Ok(users::table.find(id).get_result::<User>(conn)?)
+    }
 }
 
 #[derive(Serialize, Queryable)]
