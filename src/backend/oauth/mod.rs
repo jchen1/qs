@@ -104,7 +104,8 @@ fn try_login(db: &Addr<DbExecutor>, maybe_userid: &Option<String>, token: &OAuth
     if let Some(id) = maybe_userid {
         info!("Already logged in as: {}", id);
         return Box::new(result::<String, actix_web::Error>(Ok(id.to_string())));
-    } else if token.service == "google" {
+    } else 
+    if token.service == "google" {
         db.send(UpsertUser {
             email: match &token.email {
                 Some(email) => email,

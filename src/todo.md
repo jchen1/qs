@@ -9,6 +9,12 @@
 - [x] user authentication/authorization
   - [x] google/github oauth?
 - [x] graphql
+- [ ] timescaledb
+  - [x] install
+  - [ ] how to use diesel?
+- [ ] dockerize dependencies
+  - [x] timescale
+  - [ ] server
 - [ ] data ingest
   - [ ] Fitbit API
     - [ ] weight

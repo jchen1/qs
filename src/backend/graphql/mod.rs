@@ -53,7 +53,7 @@ impl Handler<GraphQLData> for GraphQLExecutor {
 
     fn handle(&mut self, msg: GraphQLData, _: &mut Self::Context) -> Self::Result {
         let conn = self.pool.get().unwrap();
-        let user = msg.user_id.map(|id| User::find_one(&conn, id).unwrap());
+        let user = msg.user_id.and_then(|id| User::find_one(&conn, id).ok());
         let context = Context::new(db::Conn(conn), user);
 
         let res = msg.req.execute(&self.schema, &context);
