@@ -7,9 +7,11 @@ use std::ops::Deref;
 
 pub mod user;
 pub mod token;
+pub mod step;
 
 pub use crate::db::token::*;
 pub use crate::db::user::*;
+pub use crate::db::step::*;
 
 pub mod schema;
 

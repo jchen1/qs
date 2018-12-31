@@ -5,7 +5,7 @@ table! {
         time -> Timestamptz,
         user_id -> Uuid,
         source -> Text,
-        count -> Nullable<Int4>,
+        count -> Int4,
     }
 }
 

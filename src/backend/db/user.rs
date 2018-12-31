@@ -6,11 +6,10 @@ use super::schema::{users};
 use uuid::Uuid;
 
 use actix_web::{Error, error};
-use crate::db::{self, schema, Message, Handler, DbExecutor};
+use crate::db::{schema, Message, Handler, DbExecutor};
 
 
 #[derive(Identifiable, Debug, Clone, Serialize, Queryable)]
-#[table_name = "users"]
 pub struct User {
     pub id: Uuid,
     pub email: String,
@@ -26,8 +25,47 @@ pub struct NewUser<'a> {
 }
 
 impl User {
-    pub fn find_one(conn: &PgConnection, id: Uuid) -> Result<User, diesel::result::Error> {
+    pub fn insert(conn: &PgConnection, user: NewUser) -> Result<User, diesel::result::Error> {
+        use self::schema::users::dsl::*;
+
+        diesel::insert_into(users)
+            .values(&user)
+            .execute(conn)?;
+
+        Ok(User::find_one(conn, &user.id)?)
+    }
+
+    pub fn upsert(conn: &PgConnection, user: NewUser) -> Result<User, diesel::result::Error> {
+        use self::schema::users::dsl::*;
+
+        diesel::insert_into(users)
+            .values(&user)
+            .on_conflict_do_nothing()
+            .execute(conn)?;
+
+        Ok(User::find_one(conn, &user.id)?)
+    }
+
+    pub fn find_one(conn: &PgConnection, id: &Uuid) -> Result<User, diesel::result::Error> {
         Ok(users::table.find(id).get_result::<User>(conn)?)
+    }
+
+    pub fn find_one_by_email(conn: &PgConnection, the_email: &str) -> Result<User, diesel::result::Error> {
+        use self::schema::users::dsl::*;
+        let mut items = users
+            .filter(email.eq(the_email))
+            .load::<User>(conn)?;
+
+        Ok(items.pop().unwrap())
+    }
+
+    pub fn find_one_by_g_sub(conn: &PgConnection, the_gsub: &str) -> Result<User, diesel::result::Error> {
+        use self::schema::users::dsl::*;
+        let mut items = users
+            .filter(g_sub.eq(the_gsub))
+            .load::<User>(conn)?;
+
+        Ok(items.pop().unwrap())
     }
 }
 
@@ -37,17 +75,15 @@ pub struct CreateUser {
 }
 
 impl Message for CreateUser {
-    type Result = Result<db::User, Error>;
+    type Result = Result<User, Error>;
 }
 
 impl Handler<CreateUser> for DbExecutor {
-    type Result = Result<db::User, Error>;
+    type Result = Result<User, Error>;
 
     fn handle(&mut self, msg: CreateUser, _: &mut Self::Context) -> Self::Result {
-        use self::schema::users::dsl::*;
-
         let uuid = Uuid::new_v4();
-        let new_user = db::NewUser {
+        let new_user = NewUser {
             id: &uuid,
             email: &msg.email,
             g_sub: &msg.g_sub
@@ -55,17 +91,7 @@ impl Handler<CreateUser> for DbExecutor {
 
         let conn: &PgConnection = &self.0.get().unwrap();
 
-        diesel::insert_into(users)
-            .values(&new_user)
-            .execute(conn)
-            .map_err(|_| error::ErrorInternalServerError("Error inserting person"))?;
-
-        let mut items = users
-            .filter(id.eq(&uuid))
-            .load::<db::User>(conn)
-            .map_err(|_| error::ErrorInternalServerError("Error loading person"))?;
-
-        Ok(items.pop().unwrap())
+        Ok(User::insert(conn, new_user).map_err(|_| error::ErrorInternalServerError("Error inserting user!"))?)
     }
 }
 
@@ -74,21 +100,15 @@ pub struct GetUserByEmail {
 }
 
 impl Message for GetUserByEmail {
-    type Result = Result<db::User, Error>;
+    type Result = Result<User, Error>;
 }
 
 impl Handler<GetUserByEmail> for DbExecutor {
-    type Result = Result<db::User, Error>;
+    type Result = Result<User, Error>;
 
     fn handle(&mut self, msg: GetUserByEmail, _: &mut Self::Context) -> Self::Result {
-        use self::schema::users::dsl::*;
         let conn: &PgConnection = &self.0.get().unwrap();
-        let mut items = users
-            .filter(email.eq(&msg.email))
-            .load::<db::User>(conn)
-            .map_err(|_| error::ErrorInternalServerError("Error loading person"))?;
-
-        Ok(items.pop().unwrap())
+        Ok(User::find_one_by_email(conn, &msg.email).map_err(|_| error::ErrorInternalServerError("Error loading person"))?)
     }
 }
 
@@ -97,21 +117,15 @@ pub struct GetUserByGSub {
 }
 
 impl Message for GetUserByGSub {
-    type Result = Result<db::User, Error>;
+    type Result = Result<User, Error>;
 }
 
 impl Handler<GetUserByGSub> for DbExecutor {
-    type Result = Result<db::User, Error>;
+    type Result = Result<User, Error>;
 
     fn handle(&mut self, msg: GetUserByGSub, _: &mut Self::Context) -> Self::Result {
-        use self::schema::users::dsl::*;
         let conn: &PgConnection = &self.0.get().unwrap();
-        let mut items = users
-            .filter(g_sub.eq(&msg.g_sub))
-            .load::<db::User>(conn)
-            .map_err(|_| error::ErrorInternalServerError("Error loading person"))?;
-
-        Ok(items.pop().unwrap())
+        Ok(User::find_one_by_g_sub(conn, &msg.g_sub).map_err(|_| error::ErrorInternalServerError("Error loading person"))?)
     }
 }
 
@@ -121,35 +135,22 @@ pub struct UpsertUser {
 }
 
 impl Message for UpsertUser {
-    type Result = Result<db::User, Error>;
+    type Result = Result<User, Error>;
 }
 
 impl Handler<UpsertUser> for DbExecutor {
-    type Result = Result<db::User, Error>;
+    type Result = Result<User, Error>;
 
     fn handle(&mut self, msg: UpsertUser, _: &mut Self::Context) -> Self::Result {
-        use self::schema::users::dsl::*;
-
         let conn: &PgConnection = &self.0.get().unwrap();
         
         let uuid = Uuid::new_v4();
-        let new_user = db::NewUser {
+        let new_user = NewUser {
             id: &uuid,
             email: &msg.email,
             g_sub: &msg.g_sub
         };
 
-        diesel::insert_into(users)
-            .values(&new_user)
-            .on_conflict_do_nothing()
-            .execute(conn)
-            .map_err(|_| error::ErrorInternalServerError("Error inserting person"))?;
-
-        let mut items = users
-            .filter(g_sub.eq(&msg.g_sub))
-            .load::<db::User>(conn)
-            .map_err(|_| error::ErrorInternalServerError("Error loading person"))?;
-
-        Ok(items.pop().unwrap())
+        Ok(User::upsert(conn, new_user).map_err(|_| error::ErrorInternalServerError("Error upserting user"))?)
     }
 }

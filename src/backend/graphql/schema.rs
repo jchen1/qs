@@ -63,7 +63,7 @@ graphql_object!(QueryRoot: Context |&self| {
     field user(&executor, id: Option<String>) -> FieldResult<Option<User>> {
         let conn = &executor.context().conn;
         let user = match id {
-            Some(id) => db::User::find_one(conn, Uuid::parse_str(&id)?).ok(),
+            Some(id) => db::User::find_one(conn, &Uuid::parse_str(&id)?).ok(),
             None => executor.context().user.clone()
         };
         let tokens = user.clone().and_then(|u| db::Token::belonging_to(&u).load::<db::Token>(conn.deref()).ok());
