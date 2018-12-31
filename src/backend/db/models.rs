@@ -6,8 +6,8 @@ use super::schema::{users, tokens};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, GraphQLObject, Serialize, Queryable)]
-#[graphql(description = "A user")]
+#[derive(Identifiable, Debug, Clone, Serialize, Queryable)]
+#[table_name = "users"]
 pub struct User {
     pub id: Uuid,
     pub email: String,
@@ -28,7 +28,9 @@ impl User {
     }
 }
 
-#[derive(Serialize, Queryable)]
+#[derive(Identifiable, Associations, Debug, Clone, Serialize, Queryable)]
+#[belongs_to(User)]
+#[table_name = "tokens"]
 pub struct Token {
     pub id: Uuid,
     pub user_id: Uuid,

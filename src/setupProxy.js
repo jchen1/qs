@@ -1,7 +1,7 @@
 const proxy = require('http-proxy-middleware');
 
 function filter(pathname, req) {
-  return pathname.match(/(graphi?ql)|(oauth\/?.*)/);
+  return pathname.match(/(graphi?ql)|(oauth\/?.*)|(logout)/);
 }
 
 module.exports = function(app) {

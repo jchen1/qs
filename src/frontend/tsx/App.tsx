@@ -29,6 +29,7 @@ const User = () => (
       if (user) return <div>
         <p>{`${data.user.id}: ${data.user.email}`}</p>
         <a href="oauth/fitbit/start">Fitbit</a>
+        <a href="logout">Logout</a>
       </div>;
       return <div><p>Anonymous - <a href="oauth/google/start">Login</a></p></div>
     }}

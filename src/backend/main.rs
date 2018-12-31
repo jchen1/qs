@@ -76,6 +76,7 @@ fn main() {
             .resource("/oauth/{service}/callback", |r| r.method(Method::GET).f(oauth::oauth_callback))
             .resource("/graphql", |r| r.method(Method::POST).f(graphql::graphql))
             .resource("/graphiql", |r| r.method(Method::GET).h(graphql::graphiql))
+            .resource("/logout", |r| r.method(Method::GET).f(oauth::logout))
     });
 
     server = if let Some(l) = listenfd.take_tcp_listener(0).unwrap() {

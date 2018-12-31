@@ -114,7 +114,6 @@ pub fn oauth_callback(req: &HttpRequest<AppState>) -> FutureResponse<HttpRespons
             try_login(&db, &req.identity(), &t)
             .and_then(move |user_id| {
                 req.remember(user_id.clone());
-                info!("{}, {:?}", user_id, req.identity());
                 db.send(UpsertToken {
                     access_token: t.access_token,
                     access_token_expiry: t.expiration,
@@ -126,11 +125,16 @@ pub fn oauth_callback(req: &HttpRequest<AppState>) -> FutureResponse<HttpRespons
                 .from_err()
             })
             .and_then(|res| match res {
-                Ok(token) => Ok(HttpResponse::Ok().json(token)),
+                Ok(_) => Ok(HttpResponse::Found().header(header::LOCATION, "/").finish()),
                 Err(e) => Ok(HttpResponse::InternalServerError().body(e.to_string()))
             })
             .responder()
         },
         Err(e) => ok(HttpResponse::InternalServerError().body(format!("{:?}", e))).responder()
     }
+}
+
+pub fn logout(req: &HttpRequest<AppState>) -> HttpResponse {
+    req.forget();
+    HttpResponse::Found().header(header::LOCATION, "/").finish()
 }

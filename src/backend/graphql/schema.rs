@@ -1,9 +1,12 @@
 use juniper::{FieldResult, RootNode};
 use uuid::Uuid;
+use diesel::prelude::*;
+use std::ops::Deref;
 
 use crate::oauth;
 use super::Context;
-use crate::db::models::{User};
+use crate::db::models;
+use chrono::{DateTime, Utc};
 
 #[derive(GraphQLInputObject)]
 #[graphql(description = "A user")]
@@ -13,15 +16,59 @@ struct NewUser {
     g_sub: String
 }
 
+#[derive(GraphQLObject)]
+#[graphql(description = "A token")]
+struct Token {
+    pub id: Uuid,
+    pub service: String,
+    pub access_token: String,
+    pub access_token_expiry: DateTime<Utc>
+}
+
+impl From<&models::Token> for Token {
+    fn from(token: &models::Token) -> Self {
+        Token {
+            id: token.id,
+            service: token.service.clone(),
+            access_token: token.access_token.clone(),
+            access_token_expiry: token.access_token_expiry
+        }
+    }
+}
+
+#[derive(GraphQLObject)]
+#[graphql(description = "A user")]
+struct User {
+    pub id: Uuid,
+    pub email: String,
+    pub g_sub: String,
+    pub tokens: Vec<Token>
+}
+
+impl User {
+    pub fn new(user: models::User, tokens: Vec<models::Token>) -> User {
+        User {
+            id: user.id,
+            email: user.email,
+            g_sub: user.g_sub,
+            tokens: tokens.iter().map(|t| Token::from(t)).collect()
+        }
+    }
+}
+
 pub struct QueryRoot;
 
 graphql_object!(QueryRoot: Context |&self| {
 
     field user(&executor, id: Option<String>) -> FieldResult<Option<User>> {
-        match id {
-            Some(id) => Ok(User::find_one(&executor.context().conn, Uuid::parse_str(&id)?).ok()),
-            None => Ok(executor.context().user.clone())
-        }
+        let conn = &executor.context().conn;
+        let user = match id {
+            Some(id) => models::User::find_one(conn, Uuid::parse_str(&id)?).ok(),
+            None => executor.context().user.clone()
+        };
+        let tokens = user.clone().and_then(|u| models::Token::belonging_to(&u).load::<models::Token>(conn.deref()).ok());
+
+        Ok(user.map(|u| User::new(u, tokens.unwrap_or(vec![]))))
     }
 
     field OAuthServiceURL(&executor, service: String) -> FieldResult<String> {
@@ -41,17 +88,9 @@ graphql_object!(MutationRoot: Context |&self| {
         Ok(User{
             id: Uuid::new_v4(),
             email: new_user.email,
-            g_sub: new_user.g_sub
+            g_sub: new_user.g_sub,
+            tokens: vec![]
         })
-    }
-
-    field FinishOAuthServiceFlow(&executor, service: String, code: String) -> FieldResult<User> {
-        let token = match service.as_str() {
-            "fitbit" => oauth::fitbit::oauth_flow(&code),
-            "google" => oauth::google::oauth_flow(&code),
-            _ => Err(oauth::OAuthError::Error(String::from("Bad service")))
-        };
-        unimplemented!()
     }
 });
 
