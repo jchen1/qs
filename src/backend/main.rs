@@ -21,6 +21,7 @@ pub mod oauth;
 pub mod db;
 mod middlewares;
 pub mod graphql;
+pub mod providers;
 
 use listenfd::ListenFd;
 use actix::prelude::*;
