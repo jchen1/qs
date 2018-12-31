@@ -3,14 +3,15 @@ use crate::actix::prelude::*;
 use diesel;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, self};
-use uuid;
 use std::ops::Deref;
 
-pub mod models;
-pub mod schema;
-mod handlers;
+pub mod user;
+pub mod token;
 
-pub use crate::db::handlers::*;
+pub use crate::db::token::*;
+pub use crate::db::user::*;
+
+pub mod schema;
 
 pub type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
 

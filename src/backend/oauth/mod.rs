@@ -9,19 +9,35 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use futures::{Future, future::{ok, result}};
 use uuid::Uuid;
+use std::fmt::{self, Display};
 
 use super::AppState;
-use crate::db::{UpsertToken, DbExecutor, UpsertUser};
+use crate::db::{self, UpsertToken, DbExecutor, UpsertUser};
 
 #[derive(Serialize)]
 pub struct OAuthToken {
-    service: String,
-    access_token: String,
-    expiration: DateTime<Utc>,
-    refresh_token: String,
+    pub service: String,
+    pub access_token: String,
+    pub expiration: DateTime<Utc>,
+    pub refresh_token: String,
     scopes: Vec<String>,
-    user_id: String,
+    pub user_id: String,
     email: Option<String>
+}
+
+impl From<db::Token> for OAuthToken {
+    fn from(t: db::Token) -> Self {
+        OAuthToken {
+            service: t.service,
+            access_token: t.access_token,
+            expiration: t.access_token_expiry,
+            refresh_token: t.refresh_token,
+            // todo
+            scopes: vec![],
+            user_id: t.service_userid,
+            email: None
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -30,6 +46,17 @@ pub enum OAuthError {
     Reqwest(reqwest::Error),
     TokenError(String),
     Error(String)
+}
+
+impl Display for OAuthError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            OAuthError::DotEnv(e) => write!(f, "{}", e),
+            OAuthError::Reqwest(e) => write!(f, "{}", e),
+            OAuthError::TokenError(e) => write!(f, "{}", e),
+            OAuthError::Error(e) => write!(f, "{}", e)
+        }
+    }
 }
 
 impl From<dotenv::Error> for OAuthError {
@@ -46,6 +73,14 @@ impl From<reqwest::Error> for OAuthError {
 
 fn urlencode(to_encode: &str) -> String {
   utf8_percent_encode(to_encode, DEFAULT_ENCODE_SET).to_string()
+}
+
+pub fn refresh_token(token: OAuthToken) -> Result<OAuthToken, OAuthError> {
+    match token.service.as_str() {
+        "fitbit" => fitbit::refresh(token),
+        "google" => google::refresh(token),
+        _ => Err(OAuthError::Error(String::from("Bad service")))
+    }
 }
 
 pub fn start_oauth(service: String) -> Result<String, OAuthError> {

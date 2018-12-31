@@ -95,3 +95,20 @@ pub fn oauth_flow(code: &str) -> Result<OAuthToken, OAuthError> {
 
     Ok(token)
 }
+
+pub fn refresh(token: OAuthToken) -> Result<OAuthToken, OAuthError> {
+    let client = reqwest::Client::new();
+    let google_client_secret = dotenv::var("GOOGLE_CLIENT_SECRET")?;
+    let token_endpoint = get_discovery_doc()?.token_endpoint;
+
+    let mut request = client.post(&token_endpoint)
+        .form(&[("client_id", GOOGLE_CLIENT_ID),
+                ("client_secret", &google_client_secret),
+                ("grant_type", "refresh_token"),
+                ("refresh_token", &token.refresh_token)])
+        .send()?;
+    
+    let parsed: GoogleCallbackResponse = request.json()?;
+    
+    Ok(OAuthToken::from(parsed))
+}

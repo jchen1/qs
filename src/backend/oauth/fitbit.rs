@@ -57,3 +57,18 @@ pub fn oauth_flow(code: &str) -> Result<OAuthToken, OAuthError> {
     let parsed: FitbitCallbackResponse = request.json()?;
     Ok(OAuthToken::from(parsed))
 }
+
+pub fn refresh(token: OAuthToken) -> Result<OAuthToken, OAuthError> {
+    let client = reqwest::Client::new();
+    let fitbit_client_secret = dotenv::var("FITBIT_CLIENT_SECRET")?;
+
+    let mut request = client.post("https://api.fitbit.com/oauth2/token")
+        .basic_auth(FITBIT_CLIENT_ID, Some(fitbit_client_secret))
+        .form(&[("clientId", FITBIT_CLIENT_ID),
+                ("grant_type", "refresh_token"),
+                ("refresh_token", &token.refresh_token)])
+        .send()?;
+    
+    let parsed: FitbitCallbackResponse = request.json()?;
+    Ok(OAuthToken::from(parsed))    
+}

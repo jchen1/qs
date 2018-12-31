@@ -5,7 +5,7 @@ use juniper::http::graphiql::graphiql_source;
 use juniper::http::GraphQLRequest;
 use juniper::Context as JuniperContext;
 use uuid::Uuid;
-use crate::{AppState, db::{self, models::User}};
+use crate::{AppState, db::{self, User}};
 use futures::future::Future;
 
 pub mod schema;

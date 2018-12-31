@@ -3,9 +3,9 @@ use uuid::Uuid;
 use diesel::prelude::*;
 use std::ops::Deref;
 
-use crate::oauth;
+use crate::oauth::{self, OAuthToken};
 use super::Context;
-use crate::db::models;
+use crate::db;
 use chrono::{DateTime, Utc};
 
 #[derive(GraphQLInputObject)]
@@ -25,8 +25,8 @@ struct Token {
     pub access_token_expiry: DateTime<Utc>
 }
 
-impl From<&models::Token> for Token {
-    fn from(token: &models::Token) -> Self {
+impl From<&db::Token> for Token {
+    fn from(token: &db::Token) -> Self {
         Token {
             id: token.id,
             service: token.service.clone(),
@@ -46,7 +46,7 @@ struct User {
 }
 
 impl User {
-    pub fn new(user: models::User, tokens: Vec<models::Token>) -> User {
+    pub fn new(user: db::User, tokens: Vec<db::Token>) -> User {
         User {
             id: user.id,
             email: user.email,
@@ -63,10 +63,10 @@ graphql_object!(QueryRoot: Context |&self| {
     field user(&executor, id: Option<String>) -> FieldResult<Option<User>> {
         let conn = &executor.context().conn;
         let user = match id {
-            Some(id) => models::User::find_one(conn, Uuid::parse_str(&id)?).ok(),
+            Some(id) => db::User::find_one(conn, Uuid::parse_str(&id)?).ok(),
             None => executor.context().user.clone()
         };
-        let tokens = user.clone().and_then(|u| models::Token::belonging_to(&u).load::<models::Token>(conn.deref()).ok());
+        let tokens = user.clone().and_then(|u| db::Token::belonging_to(&u).load::<db::Token>(conn.deref()).ok());
 
         Ok(user.map(|u| User::new(u, tokens.unwrap_or(vec![]))))
     }
@@ -91,6 +91,23 @@ graphql_object!(MutationRoot: Context |&self| {
             g_sub: new_user.g_sub,
             tokens: vec![]
         })
+    }
+
+    field refresh_token(&executor, token_id: Uuid) -> FieldResult<Token> {
+        let conn = &executor.context().conn;
+
+        let token = db::Token::find_one(conn, token_id)?;
+        let new_token = oauth::refresh_token(OAuthToken::from(token))?;
+        let updated = db::Token::update(conn, token_id, db::UpdateToken {
+            access_token: Some(&new_token.access_token),
+            access_token_expiry: Some(&new_token.expiration),
+            service_userid: Some(&new_token.user_id),
+            refresh_token: match new_token.refresh_token.as_str() {
+                "" => None,
+                e => Some(&e)
+            }
+        })?;
+        Ok(Token::from(&updated))
     }
 });
 
