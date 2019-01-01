@@ -6,7 +6,8 @@ use std::ops::Deref;
 use crate::oauth::{self, OAuthToken};
 use super::Context;
 use crate::db;
-use chrono::{DateTime, Utc};
+use chrono::{Local, DateTime, Utc, offset::{TimeZone}};
+use crate::providers::{fitbit};
 
 #[derive(GraphQLInputObject)]
 #[graphql(description = "A user")]
@@ -42,16 +43,18 @@ struct User {
     pub id: Uuid,
     pub email: String,
     pub g_sub: String,
-    pub tokens: Vec<Token>
+    pub tokens: Vec<Token>,
+    pub todays_steps: Vec<db::Step>
 }
 
 impl User {
-    pub fn new(user: db::User, tokens: Vec<db::Token>) -> User {
+    pub fn new(user: db::User, tokens: Vec<db::Token>, steps: Vec<db::Step>) -> User {
         User {
             id: user.id,
             email: user.email,
             g_sub: user.g_sub,
-            tokens: tokens.iter().map(|t| Token::from(t)).collect()
+            tokens: tokens.iter().map(|t| Token::from(t)).collect(),
+            todays_steps: steps
         }
     }
 }
@@ -68,7 +71,13 @@ graphql_object!(QueryRoot: Context |&self| {
         };
         let tokens = user.clone().and_then(|u| db::Token::belonging_to(&u).load::<db::Token>(conn.deref()).ok());
 
-        Ok(user.map(|u| User::new(u, tokens.unwrap_or(vec![]))))
+        // yolo
+        let fitbit_token: db::Token = tokens.clone().unwrap().iter().filter(|&x| x.service == "fitbit").collect::<Vec<&db::Token>>().pop().unwrap().clone();
+        let todays_steps = fitbit::steps_for_day(Local::now().naive_local().date(), &fitbit_token).unwrap_or(vec![]);
+
+        let only_populated = todays_steps.into_iter().filter(|s| s.count > 0).collect();
+
+        Ok(user.map(|u| User::new(u, tokens.unwrap_or(vec![]), only_populated)))
     }
 
     field OAuthServiceURL(&executor, service: String) -> FieldResult<String> {
@@ -89,7 +98,8 @@ graphql_object!(MutationRoot: Context |&self| {
             id: Uuid::new_v4(),
             email: new_user.email,
             g_sub: new_user.g_sub,
-            tokens: vec![]
+            tokens: vec![],
+            todays_steps: vec![]
         })
     }
 
