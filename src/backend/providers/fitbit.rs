@@ -1,4 +1,4 @@
-use chrono::{Date, Utc, NaiveDate, NaiveDateTime, offset::TimeZone};
+use chrono::{Utc, NaiveDate, NaiveDateTime, offset::TimeZone};
 use chrono_tz::{Tz, US::{Pacific}};
 use crate::db::{Step, Token};
 use actix_web::{Error, error};
@@ -48,10 +48,10 @@ pub fn steps_for_day(day: NaiveDate, token: &Token) -> Result<Vec<Step>, Error> 
     let mut request = client.get(&endpoint)
         .bearer_auth(&token.access_token)
         .send()
-        .map_err(|_| error::ErrorInternalServerError("failed to make request :("))?;
+        .map_err(error::ErrorInternalServerError)?;
     
     let parsed: StepsResponse = request.json()
-        .map_err(|_| error::ErrorInternalServerError("couldn't deserialize steps json :("))?;
+        .map_err(error::ErrorInternalServerError)?;
 
     let steps: Vec<Step> = parsed.activities_steps_intraday.dataset.iter().map(|s| to_step(day, tz, s, token.user_id)).collect();
 

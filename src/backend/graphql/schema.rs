@@ -6,7 +6,7 @@ use std::ops::Deref;
 use crate::oauth::{self, OAuthToken};
 use super::Context;
 use crate::db;
-use chrono::{Local, DateTime, Utc, offset::{TimeZone}};
+use chrono::{Local, DateTime, Utc};
 use crate::providers::{fitbit};
 
 #[derive(GraphQLInputObject)]
