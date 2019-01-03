@@ -1,20 +1,20 @@
-use juniper::{FieldResult, RootNode};
-use uuid::Uuid;
 use diesel::prelude::*;
+use juniper::{FieldResult, RootNode};
 use std::ops::Deref;
+use uuid::Uuid;
 
-use crate::oauth::{self, OAuthToken};
 use super::Context;
 use crate::db;
-use chrono::{Local, DateTime, Utc};
-use crate::providers::{fitbit};
+use crate::oauth::{self, OAuthToken};
+use crate::providers::fitbit;
+use chrono::{DateTime, Local, Utc};
 
 #[derive(GraphQLInputObject)]
 #[graphql(description = "A user")]
 struct NewUser {
     id: Uuid,
     email: String,
-    g_sub: String
+    g_sub: String,
 }
 
 #[derive(GraphQLObject)]
@@ -23,7 +23,7 @@ struct Token {
     pub id: Uuid,
     pub service: String,
     pub access_token: String,
-    pub access_token_expiry: DateTime<Utc>
+    pub access_token_expiry: DateTime<Utc>,
 }
 
 impl From<&db::Token> for Token {
@@ -32,7 +32,7 @@ impl From<&db::Token> for Token {
             id: token.id,
             service: token.service.clone(),
             access_token: token.access_token.clone(),
-            access_token_expiry: token.access_token_expiry
+            access_token_expiry: token.access_token_expiry,
         }
     }
 }
@@ -44,7 +44,7 @@ struct User {
     pub email: String,
     pub g_sub: String,
     pub tokens: Vec<Token>,
-    pub todays_steps: Vec<db::Step>
+    pub todays_steps: Vec<db::Step>,
 }
 
 impl User {
@@ -54,7 +54,7 @@ impl User {
             email: user.email,
             g_sub: user.g_sub,
             tokens: tokens.iter().map(|t| Token::from(t)).collect(),
-            todays_steps: steps
+            todays_steps: steps,
         }
     }
 }

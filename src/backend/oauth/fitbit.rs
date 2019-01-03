@@ -1,11 +1,11 @@
-use chrono::{Utc};
+use chrono::Utc;
 use time::Duration;
 
 pub static FITBIT_CLIENT_ID: &'static str = "22DFW9";
 pub static FITBIT_REDIRECT_URI: &'static str = "http://localhost:8080/oauth/fitbit/callback";
 pub static FITBIT_EXPIRATION_MS: i32 = 604800;
 
-use super::{OAuthError, OAuthToken, urlencode};
+use super::{urlencode, OAuthError, OAuthToken};
 
 #[derive(Deserialize)]
 pub struct FitbitCallbackResponse {
@@ -13,7 +13,7 @@ pub struct FitbitCallbackResponse {
     expires_in: u32,
     refresh_token: String,
     user_id: String,
-    scope: String
+    scope: String,
 }
 
 impl From<FitbitCallbackResponse> for OAuthToken {
@@ -25,13 +25,21 @@ impl From<FitbitCallbackResponse> for OAuthToken {
             user_id: fcr.user_id,
             scopes: fcr.scope.split(" ").map(String::from).collect(),
             email: None,
-            expiration: Utc::now() + Duration::seconds(fcr.expires_in as i64)
+            expiration: Utc::now() + Duration::seconds(fcr.expires_in as i64),
         }
     }
 }
 
 pub fn redirect() -> Result<String, OAuthError> {
-    let scopes = ["activity", "heartrate", "location", "profile", "sleep", "weight"].join(" ");
+    let scopes = [
+        "activity",
+        "heartrate",
+        "location",
+        "profile",
+        "sleep",
+        "weight",
+    ]
+    .join(" ");
     Ok(format!("https://www.fitbit.com/oauth2/authorize?response_type=code&client_id={}&redirect_uri={}&scope={}&expires_in={}",
         urlencode(FITBIT_CLIENT_ID),
         urlencode(FITBIT_REDIRECT_URI),
@@ -46,14 +54,17 @@ pub fn oauth_flow(code: &str) -> Result<OAuthToken, OAuthError> {
     let client = reqwest::Client::new();
     let fitbit_client_secret = dotenv::var("FITBIT_CLIENT_SECRET")?;
 
-    let mut request = client.post("https://api.fitbit.com/oauth2/token")
+    let mut request = client
+        .post("https://api.fitbit.com/oauth2/token")
         .basic_auth(FITBIT_CLIENT_ID, Some(fitbit_client_secret))
-        .form(&[("clientId", FITBIT_CLIENT_ID),
-                ("grant_type", "authorization_code"),
-                ("redirect_uri", &urlencode(FITBIT_REDIRECT_URI)),
-                ("code", code)])
+        .form(&[
+            ("clientId", FITBIT_CLIENT_ID),
+            ("grant_type", "authorization_code"),
+            ("redirect_uri", &urlencode(FITBIT_REDIRECT_URI)),
+            ("code", code),
+        ])
         .send()?;
-    
+
     let parsed: FitbitCallbackResponse = request.json()?;
     Ok(OAuthToken::from(parsed))
 }
@@ -62,13 +73,16 @@ pub fn refresh(token: OAuthToken) -> Result<OAuthToken, OAuthError> {
     let client = reqwest::Client::new();
     let fitbit_client_secret = dotenv::var("FITBIT_CLIENT_SECRET")?;
 
-    let mut request = client.post("https://api.fitbit.com/oauth2/token")
+    let mut request = client
+        .post("https://api.fitbit.com/oauth2/token")
         .basic_auth(FITBIT_CLIENT_ID, Some(fitbit_client_secret))
-        .form(&[("clientId", FITBIT_CLIENT_ID),
-                ("grant_type", "refresh_token"),
-                ("refresh_token", &token.refresh_token)])
+        .form(&[
+            ("clientId", FITBIT_CLIENT_ID),
+            ("grant_type", "refresh_token"),
+            ("refresh_token", &token.refresh_token),
+        ])
         .send()?;
-    
+
     let parsed: FitbitCallbackResponse = request.json()?;
-    Ok(OAuthToken::from(parsed))    
+    Ok(OAuthToken::from(parsed))
 }

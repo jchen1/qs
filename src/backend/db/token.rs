@@ -1,13 +1,13 @@
 #![allow(proc_macro_derive_resolution_fallback)]
 
-use actix_web::{Error, error};
+use super::schema::tokens;
+use super::user::User;
+use crate::db::{self, schema, DbExecutor, Handler, Message};
+use actix_web::{error, Error};
+use chrono::{DateTime, Utc};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use super::schema::{tokens};
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
-use super::user::User;
-use crate::db::{self, schema, Message, Handler, DbExecutor};
 
 #[derive(Identifiable, Associations, Debug, Clone, Serialize, Queryable)]
 #[belongs_to(User)]
@@ -19,7 +19,7 @@ pub struct Token {
     pub service_userid: String,
     pub access_token: String,
     pub access_token_expiry: DateTime<Utc>,
-    pub refresh_token: String
+    pub refresh_token: String,
 }
 
 #[derive(Insertable)]
@@ -31,16 +31,16 @@ pub struct NewToken<'a> {
     pub service_userid: &'a str,
     pub access_token: &'a str,
     pub access_token_expiry: &'a DateTime<Utc>,
-    pub refresh_token: &'a str
+    pub refresh_token: &'a str,
 }
 
 #[derive(AsChangeset)]
-#[table_name="tokens"]
+#[table_name = "tokens"]
 pub struct UpdateToken<'a> {
     pub access_token: Option<&'a str>,
     pub access_token_expiry: Option<&'a DateTime<Utc>>,
     pub service_userid: Option<&'a str>,
-    pub refresh_token: Option<&'a str>
+    pub refresh_token: Option<&'a str>,
 }
 
 impl Token {
@@ -48,8 +48,14 @@ impl Token {
         Ok(tokens::table.find(id).get_result::<Token>(conn)?)
     }
 
-    pub fn update(conn: &PgConnection, id: Uuid, update: UpdateToken) -> Result<Token, diesel::result::Error> {
-        let _ = diesel::update(tokens::table.find(id)).set(&update).execute(conn)?;
+    pub fn update(
+        conn: &PgConnection,
+        id: Uuid,
+        update: UpdateToken,
+    ) -> Result<Token, diesel::result::Error> {
+        let _ = diesel::update(tokens::table.find(id))
+            .set(&update)
+            .execute(conn)?;
         Token::find_one(conn, id)
     }
 }
@@ -60,7 +66,7 @@ pub struct CreateToken {
     pub service_userid: String,
     pub access_token: String,
     pub access_token_expiry: DateTime<Utc>,
-    pub refresh_token: String
+    pub refresh_token: String,
 }
 
 impl Message for CreateToken {
@@ -81,7 +87,7 @@ impl Handler<CreateToken> for DbExecutor {
             service_userid: &msg.service_userid,
             access_token: &msg.access_token,
             access_token_expiry: &msg.access_token_expiry,
-            refresh_token: &msg.refresh_token
+            refresh_token: &msg.refresh_token,
         };
 
         let conn: &PgConnection = &self.0.get().unwrap();
@@ -89,13 +95,19 @@ impl Handler<CreateToken> for DbExecutor {
         diesel::insert_into(tokens)
             .values(&new_token)
             .execute(conn)
-            .map_err(|e| error::ErrorInternalServerError(format!("Error inserting token - {}", e.to_string())))?;
-
+            .map_err(|e| {
+                error::ErrorInternalServerError(format!(
+                    "Error inserting token - {}",
+                    e.to_string()
+                ))
+            })?;
 
         let mut items = tokens
             .filter(id.eq(&uuid))
             .load::<db::Token>(conn)
-            .map_err(|e| error::ErrorInternalServerError(format!("Error loading token - {}", e.to_string())))?;
+            .map_err(|e| {
+                error::ErrorInternalServerError(format!("Error loading token - {}", e.to_string()))
+            })?;
 
         Ok(items.pop().unwrap())
     }
@@ -107,7 +119,7 @@ pub struct UpsertToken {
     pub service_userid: String,
     pub access_token: String,
     pub access_token_expiry: DateTime<Utc>,
-    pub refresh_token: String
+    pub refresh_token: String,
 }
 
 impl Message for UpsertToken {
@@ -128,7 +140,7 @@ impl Handler<UpsertToken> for DbExecutor {
             service_userid: &msg.service_userid,
             access_token: &msg.access_token,
             access_token_expiry: &msg.access_token_expiry,
-            refresh_token: &msg.refresh_token
+            refresh_token: &msg.refresh_token,
         };
 
         let conn: &PgConnection = &self.0.get().unwrap();
@@ -143,17 +155,23 @@ impl Handler<UpsertToken> for DbExecutor {
                 service_userid: Some(new_token.service_userid),
                 refresh_token: match new_token.refresh_token {
                     "" => None,
-                    t => Some(t)
-                }
+                    t => Some(t),
+                },
             })
             .execute(conn)
-            .map_err(|e| error::ErrorInternalServerError(format!("Error inserting token - {}", e.to_string())))?;
-
+            .map_err(|e| {
+                error::ErrorInternalServerError(format!(
+                    "Error inserting token - {}",
+                    e.to_string()
+                ))
+            })?;
 
         let mut items = tokens
             .filter(user_id.eq(&msg.user_id).and(service.eq(&msg.service)))
             .load::<db::Token>(conn)
-            .map_err(|e| error::ErrorInternalServerError(format!("Error loading token - {}", e.to_string())))?;
+            .map_err(|e| {
+                error::ErrorInternalServerError(format!("Error loading token - {}", e.to_string()))
+            })?;
 
         Ok(items.pop().unwrap())
     }

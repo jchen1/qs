@@ -15,29 +15,36 @@
 - [ ] dockerize dependencies
   - [x] timescale
   - [ ] server
+- [ ] consistent error handling
+- [ ] tests
 - [ ] data ingest
-  - [ ] Fitbit API
-    - [ ] weight
-    - [ ] sleep
-    - [ ] body fat
-    - [ ] exercise/steps
-    - [ ] cals burned
-    - [ ] historical data
-  - [ ] google
-    - [ ] location?
-  - [ ] github
-    - [ ] commit activity
-  - [ ] last.fm
-    - [ ] music
-  - [ ] oral-b
-    - [ ] bluetooth le app (lol)
-    - [ ] reverse-engineer their API?
-  - [ ] philips hue
-    - [ ] ?
-  - [ ] manual logs
-    - [ ] workouts
-    - [ ] videos?
-    - [ ] medical data?
+  - [ ] workers
+    - [ ] redis queues
+    - [ ] error handling
+    - [ ] dlq
+  - [ ] APIs
+    - [ ] Fitbit API
+      - [ ] weight
+      - [ ] sleep
+      - [ ] body fat
+      - [ ] exercise/steps
+      - [ ] cals burned
+      - [ ] historical data
+    - [ ] google
+      - [ ] location?
+    - [ ] github
+      - [ ] commit activity
+    - [ ] last.fm
+      - [ ] music
+    - [ ] oral-b
+      - [ ] bluetooth le app (lol)
+      - [ ] reverse-engineer their API?
+    - [ ] philips hue
+      - [ ] ?
+    - [ ] manual logs
+      - [ ] workouts
+      - [ ] videos?
+      - [ ] medical data?
 - [ ] frontend
   - [x] react
   - [ ] design

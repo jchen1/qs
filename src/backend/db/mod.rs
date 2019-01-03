@@ -2,16 +2,16 @@
 use crate::actix::prelude::*;
 use diesel;
 use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, self};
+use diesel::r2d2::{self, ConnectionManager};
 use std::ops::Deref;
 
-pub mod user;
-pub mod token;
 pub mod step;
+pub mod token;
+pub mod user;
 
+pub use crate::db::step::*;
 pub use crate::db::token::*;
 pub use crate::db::user::*;
-pub use crate::db::step::*;
 
 pub mod schema;
 

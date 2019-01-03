@@ -1,19 +1,22 @@
 use crate::actix::prelude::*;
-use actix_web::{AsyncResponder, HttpMessage, FutureResponse, Error, HttpRequest, HttpResponse};
+use crate::{
+    db::{self, User},
+    AppState,
+};
 use actix_web::middleware::identity::RequestIdentity;
+use actix_web::{AsyncResponder, Error, FutureResponse, HttpMessage, HttpRequest, HttpResponse};
+use futures::future::Future;
 use juniper::http::graphiql::graphiql_source;
 use juniper::http::GraphQLRequest;
 use juniper::Context as JuniperContext;
 use uuid::Uuid;
-use crate::{AppState, db::{self, User}};
-use futures::future::Future;
 
 pub mod schema;
 
 #[derive(Serialize, Deserialize)]
 pub struct GraphQLData {
     req: GraphQLRequest,
-    user_id: Option<Uuid>
+    user_id: Option<Uuid>,
 }
 
 pub struct Context {
@@ -25,7 +28,10 @@ impl JuniperContext for Context {}
 
 impl Context {
     pub fn new(conn: db::Conn, user: Option<User>) -> Context {
-        Context { conn: conn, user: user }
+        Context {
+            conn: conn,
+            user: user,
+        }
     }
 }
 
@@ -35,12 +41,15 @@ impl Message for GraphQLData {
 
 pub struct GraphQLExecutor {
     schema: std::sync::Arc<schema::Schema>,
-    pool: db::Pool
+    pool: db::Pool,
 }
 
 impl GraphQLExecutor {
     pub fn new(schema: std::sync::Arc<schema::Schema>, pool: db::Pool) -> GraphQLExecutor {
-        GraphQLExecutor { schema: schema, pool: pool }
+        GraphQLExecutor {
+            schema: schema,
+            pool: pool,
+        }
     }
 }
 
@@ -75,14 +84,18 @@ pub fn graphql(req: &HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
     let user_id = req.identity().and_then(|id| Uuid::parse_str(&id).ok());
 
     req.json()
-       .from_err()
-       .and_then(move |req: GraphQLRequest| {
-           executor.send(GraphQLData{req: req, user_id: user_id})
-               .from_err()
-               .and_then(|res| match res {
-                   Ok(data) => Ok(HttpResponse::Ok().body(data)),
-                   Err(_) => Ok(HttpResponse::InternalServerError().into())
-               })
-       })
-       .responder()
+        .from_err()
+        .and_then(move |req: GraphQLRequest| {
+            executor
+                .send(GraphQLData {
+                    req: req,
+                    user_id: user_id,
+                })
+                .from_err()
+                .and_then(|res| match res {
+                    Ok(data) => Ok(HttpResponse::Ok().body(data)),
+                    Err(_) => Ok(HttpResponse::InternalServerError().into()),
+                })
+        })
+        .responder()
 }

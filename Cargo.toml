@@ -5,8 +5,12 @@ authors = ["Jeff Chen <hello@jeff.yt>"]
 edition = "2018"
 
 [[bin]]
-name = "qs"
-path = "src/backend/main.rs"
+name = "qs-web"
+path = "src/backend/web.rs"
+
+# [[bin]]
+# name = "qs-worker"
+# path = "src/backend/worker.rs"
 
 [dependencies]
 actix = "0.7"
@@ -24,6 +28,7 @@ jsonwebtoken = "5.0.1"
 juniper = { version = "0.10.0", features = ["chrono", "url", "uuid"] }
 listenfd = "0.3"
 log = "0.4.6"
+oppgave = "0.1.0"
 reqwest = "0.9.5"
 serde = "1.0"
 serde_derive = "1.0"

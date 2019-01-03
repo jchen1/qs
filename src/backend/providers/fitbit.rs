@@ -1,35 +1,39 @@
-use chrono::{Utc, NaiveDate, NaiveDateTime, offset::TimeZone};
-use chrono_tz::{Tz, US::{Pacific}};
 use crate::db::{Step, Token};
-use actix_web::{Error, error};
+use actix_web::{error, Error};
+use chrono::{offset::TimeZone, NaiveDate, NaiveDateTime, Utc};
+use chrono_tz::{Tz, US::Pacific};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct StepIntradayValue {
     pub time: String,
-    pub value: i32
+    pub value: i32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct StepsIntraday {
-    pub dataset: Vec<StepIntradayValue>
+    pub dataset: Vec<StepIntradayValue>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct StepsResponse {
-    #[serde(rename="activities-steps-intraday")]
-    pub activities_steps_intraday: StepsIntraday
+    #[serde(rename = "activities-steps-intraday")]
+    pub activities_steps_intraday: StepsIntraday,
 }
 
 fn to_step(day: NaiveDate, local_tz: Tz, step: &StepIntradayValue, user_id: Uuid) -> Step {
     // todo proper error handling
-    let naive_dt = NaiveDateTime::parse_from_str(&format!("{}T{}", day.format("%m-%d-%Y"), step.time), "%m-%d-%YT%H:%M:%S").unwrap();
+    let naive_dt = NaiveDateTime::parse_from_str(
+        &format!("{}T{}", day.format("%m-%d-%Y"), step.time),
+        "%m-%d-%YT%H:%M:%S",
+    )
+    .unwrap();
     let local_dt = local_tz.from_local_datetime(&naive_dt).unwrap();
     Step {
         time: Utc.from_utc_datetime(&local_dt.naive_utc()),
         user_id: user_id,
         source: "fitbit".to_string(),
-        count: step.value
+        count: step.value,
     }
 }
 
@@ -42,18 +46,25 @@ pub fn steps_for_day(day: NaiveDate, token: &Token) -> Result<Vec<Step>, Error> 
     let client = reqwest::Client::new();
 
     let tz = local_tz(token)?;
-    let endpoint = format!("https://api.fitbit.com/1/user/-/activities/steps/date/{}/1d/1min/time/00:00/23:59.json",
-        day.format("%Y-%m-%d"));
+    let endpoint = format!(
+        "https://api.fitbit.com/1/user/-/activities/steps/date/{}/1d/1min/time/00:00/23:59.json",
+        day.format("%Y-%m-%d")
+    );
 
-    let mut request = client.get(&endpoint)
+    let mut request = client
+        .get(&endpoint)
         .bearer_auth(&token.access_token)
         .send()
         .map_err(error::ErrorInternalServerError)?;
-    
-    let parsed: StepsResponse = request.json()
-        .map_err(error::ErrorInternalServerError)?;
 
-    let steps: Vec<Step> = parsed.activities_steps_intraday.dataset.iter().map(|s| to_step(day, tz, s, token.user_id)).collect();
+    let parsed: StepsResponse = request.json().map_err(error::ErrorInternalServerError)?;
+
+    let steps: Vec<Step> = parsed
+        .activities_steps_intraday
+        .dataset
+        .iter()
+        .map(|s| to_step(day, tz, s, token.user_id))
+        .collect();
 
     Ok(steps)
 }

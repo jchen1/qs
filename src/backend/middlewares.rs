@@ -2,7 +2,7 @@
 
 // pub trait RequestIdentity {
 //   fn identity(&self) -> Option<String>;
-  
+
 // }
 
 // pub struct Auth;
