@@ -2,6 +2,7 @@ use crate::actix::prelude::*;
 use crate::{
     db::{self, User},
     AppState,
+    queue::{Queue}
 };
 use actix_web::middleware::identity::RequestIdentity;
 use actix_web::{AsyncResponder, Error, FutureResponse, HttpMessage, HttpRequest, HttpResponse};
@@ -22,15 +23,17 @@ pub struct GraphQLData {
 pub struct Context {
     pub conn: db::Conn,
     pub user: Option<User>,
+    pub producer: Queue
 }
 
 impl JuniperContext for Context {}
 
 impl Context {
-    pub fn new(conn: db::Conn, user: Option<User>) -> Context {
+    pub fn new(conn: db::Conn, user: Option<User>, producer: Queue) -> Context {
         Context {
             conn: conn,
             user: user,
+            producer: producer
         }
     }
 }
@@ -42,13 +45,15 @@ impl Message for GraphQLData {
 pub struct GraphQLExecutor {
     schema: std::sync::Arc<schema::Schema>,
     pool: db::Pool,
+    producer: Queue
 }
 
 impl GraphQLExecutor {
-    pub fn new(schema: std::sync::Arc<schema::Schema>, pool: db::Pool) -> GraphQLExecutor {
+    pub fn new(schema: std::sync::Arc<schema::Schema>, pool: db::Pool, producer: Queue) -> GraphQLExecutor {
         GraphQLExecutor {
             schema: schema,
             pool: pool,
+            producer: producer
         }
     }
 }
@@ -63,7 +68,7 @@ impl Handler<GraphQLData> for GraphQLExecutor {
     fn handle(&mut self, msg: GraphQLData, _: &mut Self::Context) -> Self::Result {
         let conn = self.pool.get().unwrap();
         let user = msg.user_id.and_then(|id| User::find_one(&conn, &id).ok());
-        let context = Context::new(db::Conn(conn), user);
+        let context = Context::new(db::Conn(conn), user, self.producer.clone());
 
         let res = msg.req.execute(&self.schema, &context);
         let res_text = serde_json::to_string(&res)?;

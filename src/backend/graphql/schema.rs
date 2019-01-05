@@ -7,7 +7,8 @@ use super::Context;
 use crate::db;
 use crate::oauth::{self, OAuthToken};
 use crate::providers::fitbit;
-use chrono::{DateTime, Local, Utc};
+use crate::queue::{QueueAction};
+use chrono::{DateTime, Local, Utc, NaiveDate};
 
 #[derive(GraphQLInputObject)]
 #[graphql(description = "A user")]
@@ -118,6 +119,25 @@ graphql_object!(MutationRoot: Context |&self| {
             }
         })?;
         Ok(Token::from(&updated))
+    }
+
+    field ingest_data(&executor, service: String, measurement: String, date: NaiveDate) -> FieldResult<bool> {
+        let producer = &executor.context().producer;
+        let user_id = executor.context().user.clone().ok_or("Not logged in".to_owned())?.id;
+        
+        match (service.as_str(), measurement.as_str()) {
+            ("fitbit", "steps") => Ok(()),
+            _ => Err("Not implemented".to_owned())
+        }?;
+
+        let action = QueueAction::IngestSteps(
+            user_id.clone(),
+            service,
+            date);
+        
+        producer.push(action)?;
+
+        Ok(true)
     }
 });
 
