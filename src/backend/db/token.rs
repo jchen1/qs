@@ -48,10 +48,16 @@ impl Token {
         Ok(tokens::table.find(id).get_result::<Token>(conn)?)
     }
 
-    pub fn find_by_uid_service(conn: &PgConnection, the_user_id: &Uuid, the_service: &str) -> Result<Token, diesel::result::Error> {
+    pub fn find_by_uid_service(
+        conn: &PgConnection,
+        the_user_id: &Uuid,
+        the_service: &str,
+    ) -> Result<Token, diesel::result::Error> {
         use self::schema::tokens::dsl::*;
 
-        let mut items = tokens.filter(user_id.eq(the_user_id).and(service.eq(the_service))).load::<Token>(conn)?;
+        let mut items = tokens
+            .filter(user_id.eq(the_user_id).and(service.eq(the_service)))
+            .load::<Token>(conn)?;
 
         // todo assert at most one
         Ok(items.pop().unwrap())

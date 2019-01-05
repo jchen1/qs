@@ -1,9 +1,9 @@
-use actix::prelude::*;
 use crate::{
     db::{self, User},
+    queue::Queue,
     AppState,
-    queue::{Queue}
 };
+use actix::prelude::*;
 use actix_web::middleware::identity::RequestIdentity;
 use actix_web::{AsyncResponder, Error, FutureResponse, HttpMessage, HttpRequest, HttpResponse};
 use futures::future::Future;
@@ -23,7 +23,7 @@ pub struct GraphQLData {
 pub struct Context {
     pub conn: db::Conn,
     pub user: Option<User>,
-    pub producer: Queue
+    pub producer: Queue,
 }
 
 impl JuniperContext for Context {}
@@ -33,7 +33,7 @@ impl Context {
         Context {
             conn: conn,
             user: user,
-            producer: producer
+            producer: producer,
         }
     }
 }
@@ -45,15 +45,19 @@ impl Message for GraphQLData {
 pub struct GraphQLExecutor {
     schema: std::sync::Arc<schema::Schema>,
     pool: db::Pool,
-    producer: Queue
+    producer: Queue,
 }
 
 impl GraphQLExecutor {
-    pub fn new(schema: std::sync::Arc<schema::Schema>, pool: db::Pool, producer: Queue) -> GraphQLExecutor {
+    pub fn new(
+        schema: std::sync::Arc<schema::Schema>,
+        pool: db::Pool,
+        producer: Queue,
+    ) -> GraphQLExecutor {
         GraphQLExecutor {
             schema: schema,
             pool: pool,
-            producer: producer
+            producer: producer,
         }
     }
 }

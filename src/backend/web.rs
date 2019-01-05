@@ -18,10 +18,10 @@ mod worker;
 use actix::prelude::*;
 use actix_web::middleware::identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::middleware::session::{CookieSessionBackend, SessionStorage};
-use actix_web::{fs::NamedFile, Error, http::Method, middleware, server, App, State};
+use actix_web::{fs::NamedFile, http::Method, middleware, server, App, Error, State};
 use listenfd::ListenFd;
-use std::thread;
 use std::sync::Arc;
+use std::thread;
 
 /// State with DbExecutor address
 pub struct AppState {
@@ -39,7 +39,8 @@ fn main() {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
-    let db_url = dotenv::var("DATABASE_URL").unwrap_or("postgres://postgres:password@localhost/dev_db".to_string());
+    let db_url = dotenv::var("DATABASE_URL")
+        .unwrap_or("postgres://postgres:password@localhost/dev_db".to_string());
     let redis_url = dotenv::var("REDIS_URL").unwrap_or("redis://localhost".to_string());
     let cookie_key = dotenv::var("JWT_ISSUE").unwrap_or(" ".repeat(32).to_string());
     let queue_name = dotenv::var("WORKER_QUEUE_NAME").unwrap_or("default".to_string());
@@ -50,7 +51,10 @@ fn main() {
     let pool = db::init_pool(db_url);
     let graphql_pool = pool.clone();
 
-    let num_workers: u32 = dotenv::var("NUM_WORKERS").unwrap_or("1".to_string()).parse().unwrap();
+    let num_workers: u32 = dotenv::var("NUM_WORKERS")
+        .unwrap_or("1".to_string())
+        .parse()
+        .unwrap();
     let mut threads = vec![];
     let worker_redis_url = redis_url.clone();
     let worker_queue_name = queue_name.clone();
@@ -62,9 +66,11 @@ fn main() {
 
     let schema = std::sync::Arc::new(graphql::schema::create_schema());
     let graphql_addr = SyncArbiter::start(3, move || {
-        graphql::GraphQLExecutor::new(schema.clone(),
-                                      graphql_pool.clone(),
-                                      queue::init_queue(redis_url.clone(), queue_name.clone()))
+        graphql::GraphQLExecutor::new(
+            schema.clone(),
+            graphql_pool.clone(),
+            queue::init_queue(redis_url.clone(), queue_name.clone()),
+        )
     });
 
     // let redis_addr = SyncArbiter::start(3, move || queue::QueueExecutor(queue_clone));
@@ -118,14 +124,14 @@ fn main() {
                 let queue = queue::init_queue(redis_url.clone(), queue_name.clone());
                 let ctx = worker::WorkerContext {
                     queue: queue,
-                    conn: db::Conn(conn)
+                    conn: db::Conn(conn),
                 };
 
                 while *is_running {
                     match worker::pop_and_execute(&ctx) {
                         // YOLO
                         Ok(_) => (),
-                        Err(_) => ()
+                        Err(_) => (),
                     }
                 }
             }));

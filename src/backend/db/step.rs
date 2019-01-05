@@ -42,7 +42,10 @@ impl Step {
 
     // todo overload it
 
-    pub fn insert_many(conn: &PgConnection, the_steps: &Vec<Step>) -> Result<usize, diesel::result::Error> {
+    pub fn insert_many(
+        conn: &PgConnection,
+        the_steps: &Vec<Step>,
+    ) -> Result<usize, diesel::result::Error> {
         use self::schema::steps::dsl::*;
 
         diesel::insert_into(steps).values(the_steps).execute(conn)
