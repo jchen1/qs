@@ -1,4 +1,4 @@
-use crate::actix::prelude::*;
+use actix::prelude::*;
 use crate::{
     db::{self, User},
     AppState,

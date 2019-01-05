@@ -7,19 +7,6 @@ extern crate juniper;
 #[macro_use]
 extern crate log;
 
-extern crate actix;
-extern crate actix_web;
-extern crate base64;
-extern crate env_logger;
-extern crate futures;
-extern crate hyper;
-extern crate listenfd;
-extern crate oppgave;
-extern crate r2d2;
-extern crate reqwest;
-extern crate url;
-extern crate uuid;
-
 pub mod db;
 pub mod graphql;
 mod middlewares;
