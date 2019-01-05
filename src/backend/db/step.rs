@@ -39,6 +39,14 @@ impl Step {
 
         Ok(Step::find_one(conn, (&step.user_id, &step.time))?)
     }
+
+    // todo overload it
+
+    pub fn insert_many(conn: &PgConnection, the_steps: &Vec<Step>) -> Result<usize, diesel::result::Error> {
+        use self::schema::steps::dsl::*;
+
+        diesel::insert_into(steps).values(the_steps).execute(conn)
+    }
 }
 
 impl Message for Step {

@@ -12,13 +12,16 @@ pub mod graphql;
 mod middlewares;
 pub mod oauth;
 pub mod providers;
-mod queue;
+pub mod queue;
+mod worker;
 
 use actix::prelude::*;
 use actix_web::middleware::identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::middleware::session::{CookieSessionBackend, SessionStorage};
 use actix_web::{fs::NamedFile, Error, http::Method, middleware, server, App, State};
 use listenfd::ListenFd;
+use std::thread;
+use std::sync::Arc;
 
 /// State with DbExecutor address
 pub struct AppState {
@@ -40,11 +43,20 @@ fn main() {
     let redis_url = dotenv::var("REDIS_URL").unwrap_or("redis://localhost".to_string());
     let cookie_key = dotenv::var("JWT_ISSUE").unwrap_or(" ".repeat(32).to_string());
     let queue_name = dotenv::var("WORKER_QUEUE_NAME").unwrap_or("default".to_string());
+    let env = dotenv::var("ENVIORNMENT").unwrap_or("dev".to_string());
 
     let sys = actix::System::new("qs");
 
     let pool = db::init_pool(db_url);
     let graphql_pool = pool.clone();
+
+    let num_workers: u32 = dotenv::var("NUM_WORKERS").unwrap_or("1".to_string()).parse().unwrap();
+    let mut threads = vec![];
+    let worker_redis_url = redis_url.clone();
+    let worker_queue_name = queue_name.clone();
+    let worker_pool = pool.clone();
+
+    let is_running = Arc::new(true);
 
     let db_addr = SyncArbiter::start(3, move || db::DbExecutor(pool.clone()));
 
@@ -94,6 +106,36 @@ fn main() {
         server.bind("127.0.0.1:8081").unwrap()
     };
 
+    if env == "dev" {
+        for i in 0..num_workers {
+            let redis_url = worker_redis_url.clone();
+            let queue_name = worker_queue_name.clone();
+            let conn = worker_pool.get().unwrap();
+            let is_running = is_running.clone();
+
+            threads.push(thread::spawn(move || {
+                info!("Started thread {}", i);
+                let queue = queue::init_queue(redis_url.clone(), queue_name.clone());
+                let ctx = worker::WorkerContext {
+                    queue: queue,
+                    conn: db::Conn(conn)
+                };
+
+                while *is_running {
+                    match worker::pop_and_execute(&ctx) {
+                        // YOLO
+                        Ok(_) => (),
+                        Err(_) => ()
+                    }
+                }
+            }));
+        }
+    }
+
     server.run();
     sys.run();
+
+    for thread in threads {
+        let _ = thread.join();
+    }
 }

@@ -7,7 +7,7 @@ use super::Context;
 use crate::db;
 use crate::oauth::{self, OAuthToken};
 use crate::providers::fitbit;
-use crate::queue::{QueueAction};
+use crate::queue::{QueueAction, QueueActionParams};
 use chrono::{DateTime, Local, Utc, NaiveDate};
 
 #[derive(GraphQLInputObject)]
@@ -130,10 +130,14 @@ graphql_object!(MutationRoot: Context |&self| {
             _ => Err("Not implemented".to_owned())
         }?;
 
-        let action = QueueAction::IngestSteps(
-            user_id.clone(),
-            service,
-            date);
+        let action = QueueAction {
+            id: Uuid::new_v4(),
+            user_id: user_id.clone(),
+            params: QueueActionParams::IngestSteps(
+                service,
+                date
+            )
+        };
         
         producer.push(action)?;
 

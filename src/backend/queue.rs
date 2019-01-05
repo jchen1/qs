@@ -4,9 +4,16 @@ use redis::{Client};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum QueueAction {
-  // IngestSteps(userid, service, date)
-  IngestSteps(Uuid, String, NaiveDate)
+pub enum QueueActionParams {
+  // service, date
+  IngestSteps(String, NaiveDate)
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct QueueAction {
+  pub id: Uuid,
+  pub user_id: Uuid,
+  pub params: QueueActionParams
 }
 
 pub fn init_queue(redis_url: String, queue_name: String) -> Queue {
