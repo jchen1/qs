@@ -1,4 +1,4 @@
-use chrono::NaiveDate;
+use chrono::{NaiveDate};
 pub use oppgave::Queue;
 use redis::Client;
 use uuid::Uuid;
@@ -7,6 +7,8 @@ use uuid::Uuid;
 pub enum QueueActionParams {
     // service, date
     IngestSteps(String, NaiveDate),
+    // service, startdate, num_days
+    BulkIngestSteps(String, NaiveDate, u32)
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

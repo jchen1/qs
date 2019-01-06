@@ -28,9 +28,12 @@ impl Step {
             .get_result::<Step>(conn)?)
     }
 
-    // pub fn for_period(conn: &PgConnection, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Step>, diesel::result::Error> {
-    //     unimplemented!()
-    // }
+    pub fn for_period(conn: &PgConnection, the_user_id: &Uuid, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Step>, diesel::result::Error> {
+        use self::schema::steps::dsl::*;
+
+        Ok(steps.filter(user_id.eq(the_user_id).and(time.ge(start).and(time.lt(end))))
+            .order(time.desc()).load::<Step>(conn)?)
+    }
 
     pub fn insert(conn: &PgConnection, step: &Step) -> Result<Step, diesel::result::Error> {
         use self::schema::steps::dsl::*;

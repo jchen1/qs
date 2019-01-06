@@ -60,7 +60,7 @@ fn main() {
     let worker_queue_name = queue_name.clone();
     let worker_pool = pool.clone();
 
-    let is_running = Arc::new(true);
+    let mut is_running = Arc::new(true);
 
     let db_addr = SyncArbiter::start(3, move || db::DbExecutor(pool.clone()));
 
@@ -140,6 +140,8 @@ fn main() {
 
     server.run();
     sys.run();
+
+    *Arc::get_mut(&mut is_running).unwrap() = false;
 
     for thread in threads {
         let _ = thread.join();

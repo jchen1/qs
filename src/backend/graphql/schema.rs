@@ -6,9 +6,8 @@ use uuid::Uuid;
 use super::Context;
 use crate::db;
 use crate::oauth::{self, OAuthToken};
-use crate::providers::fitbit;
 use crate::queue::{QueueAction, QueueActionParams};
-use chrono::{DateTime, Local, NaiveDate, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 
 #[derive(GraphQLInputObject)]
 #[graphql(description = "A user")]
@@ -45,7 +44,7 @@ struct User {
     pub email: String,
     pub g_sub: String,
     pub tokens: Vec<Token>,
-    pub todays_steps: Vec<db::Step>,
+    pub steps: Vec<db::Step>,
 }
 
 impl User {
@@ -55,7 +54,7 @@ impl User {
             email: user.email,
             g_sub: user.g_sub,
             tokens: tokens.iter().map(|t| Token::from(t)).collect(),
-            todays_steps: steps,
+            steps: steps,
         }
     }
 }
@@ -64,21 +63,24 @@ pub struct QueryRoot;
 
 graphql_object!(QueryRoot: Context |&self| {
 
-    field user(&executor, id: Option<String>) -> FieldResult<Option<User>> {
+    field user(&executor, id: Option<String>, start_time: Option<DateTime<Utc>>, end_time: Option<DateTime<Utc>>) -> FieldResult<Option<User>> {
         let conn = &executor.context().conn;
         let user = match id {
             Some(id) => db::User::find_one(conn, &Uuid::parse_str(&id)?).ok(),
             None => executor.context().user.clone()
         };
-        let tokens = user.clone().and_then(|u| db::Token::belonging_to(&u).load::<db::Token>(conn.deref()).ok());
 
-        // yolo
-        let fitbit_token: db::Token = tokens.clone().unwrap().iter().filter(|&x| x.service == "fitbit").collect::<Vec<&db::Token>>().pop().unwrap().clone();
-        let todays_steps = fitbit::steps_for_day(Local::now().naive_local().date(), &fitbit_token).unwrap_or(vec![]);
+        if let Some(user) = user {
+            let tokens = db::Token::belonging_to(&user).load::<db::Token>(conn.deref()).ok();
+            let fitbit_token = db::Token::find_by_uid_service(conn, &user.id, "fitbit").map_err(|_| "no token!".to_owned())?;
+            let steps = db::Step::for_period(conn, &user.id, &start_time.unwrap_or(Utc::today().and_hms(0, 0, 0)), &end_time.unwrap_or(Utc::now())).unwrap_or(vec![]);
 
-        let only_populated = todays_steps.into_iter().filter(|s| s.count > 0).collect();
+            let only_populated = steps.into_iter().filter(|s| s.count > 0).collect();
 
-        Ok(user.map(|u| User::new(u, tokens.unwrap_or(vec![]), only_populated)))
+            Ok(Some(User::new(user, tokens.unwrap_or(vec![]), only_populated)))
+        } else {
+            Ok(None)
+        }
     }
 
     field OAuthServiceURL(&executor, service: String) -> FieldResult<String> {
@@ -100,7 +102,7 @@ graphql_object!(MutationRoot: Context |&self| {
             email: new_user.email,
             g_sub: new_user.g_sub,
             tokens: vec![],
-            todays_steps: vec![]
+            steps: vec![]
         })
     }
 
@@ -136,6 +138,30 @@ graphql_object!(MutationRoot: Context |&self| {
             params: QueueActionParams::IngestSteps(
                 service,
                 date
+            )
+        };
+
+        producer.push(action)?;
+
+        Ok(true)
+    }
+
+    field ingest_data_bulk(&executor, service: String, measurement: String, date: NaiveDate, num_days: i32) -> FieldResult<bool> {
+        let producer = &executor.context().producer;
+        let user_id = executor.context().user.clone().ok_or("Not logged in".to_owned())?.id;
+
+        match (service.as_str(), measurement.as_str(), num_days >= 0) {
+            ("fitbit", "steps", true) => Ok(()),
+            _ => Err("Not implemented".to_owned())
+        }?;
+
+        let action = QueueAction {
+            id: Uuid::new_v4(),
+            user_id: user_id.clone(),
+            params: QueueActionParams::BulkIngestSteps(
+                service,
+                date,
+                num_days as u32
             )
         };
 

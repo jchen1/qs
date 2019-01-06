@@ -23,7 +23,7 @@
     "start-frontend": "BROWSER=NONE PORT=8080 react-scripts start",
     "build-frontend": "react-scripts build",
     "test-frontend": "react-scripts test",
-    "start-backend": "docker start redis timescaledb && RUST_BACKTRACE=1 systemfd --no-pid -s http::8081 -- cargo --color always watch -x 'run --bin qs-web' -w src/backend",
+    "start-backend": "docker start redis timescaledb && RUST_BACKTRACE=1 systemfd --no-pid -s http::8081 -- cargo --color always watch -x run -w src/backend",
     "build-backend": "cargo build",
     "clean-backend": "rm -rf target",
     "format-backend": "cargo fmt",
