@@ -20,14 +20,13 @@ use actix_web::middleware::identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::middleware::session::{CookieSessionBackend, SessionStorage};
 use actix_web::{fs::NamedFile, http::Method, middleware, server, App, Error, State};
 use listenfd::ListenFd;
-use std::sync::Arc;
 use std::thread;
+use std::sync::{Arc, RwLock};
+use std::time::{Duration};
 
-/// State with DbExecutor address
 pub struct AppState {
     db: Addr<db::DbExecutor>,
-    graphql: Addr<graphql::GraphQLExecutor>,
-    // redis: Addr<queue::QueueExecutor>
+    graphql: Addr<graphql::GraphQLExecutor>
 }
 
 fn index(_state: State<AppState>) -> Result<NamedFile, Error> {
@@ -60,7 +59,7 @@ fn main() {
     let worker_queue_name = queue_name.clone();
     let worker_pool = pool.clone();
 
-    let mut is_running = Arc::new(true);
+    let is_running = Arc::new(RwLock::new(true));
 
     let db_addr = SyncArbiter::start(3, move || db::DbExecutor(pool.clone()));
 
@@ -73,14 +72,11 @@ fn main() {
         )
     });
 
-    // let redis_addr = SyncArbiter::start(3, move || queue::QueueExecutor(queue_clone));
-
     let mut listenfd = ListenFd::from_env();
     let mut server = server::new(move || {
         App::with_state(AppState {
             db: db_addr.clone(),
             graphql: graphql_addr.clone(),
-            // redis: redis_addr.clone()
         })
         .middleware(middleware::Logger::default())
         // TODO secure: true on prod
@@ -127,11 +123,20 @@ fn main() {
                     conn: db::Conn(conn),
                 };
 
-                while *is_running {
-                    match worker::pop_and_execute(&ctx) {
-                        // YOLO
-                        Ok(_) => (),
-                        Err(_) => (),
+                loop {
+                    let is_running = *is_running.read().unwrap();
+                    info!("is_running {}", is_running);
+                    if is_running {
+                        match worker::pop_and_execute(&ctx) {
+                            // YOLO
+                            Ok(Some(_)) => (),
+                            Ok(None) => {
+                                thread::sleep(Duration::from_secs(5))
+                            }
+                            Err(_) => (),
+                        }
+                    } else {
+                        break;
                     }
                 }
             }));
@@ -141,9 +146,15 @@ fn main() {
     server.run();
     sys.run();
 
-    *Arc::get_mut(&mut is_running).unwrap() = false;
+    {
+        let mut w = is_running.write().unwrap();
+        *w = false;
+    }
+
+    info!("Shutting down...");
 
     for thread in threads {
         let _ = thread.join();
     }
+    info!("Worker threads shut down.");
 }

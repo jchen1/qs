@@ -58,8 +58,8 @@ fn execute_one(
     }
 }
 
-pub fn pop_and_execute(ctx: &WorkerContext) -> Result<(), Error> {
-    if let Some(task) = ctx.queue.next::<QueueAction>() {
+pub fn pop_and_execute(ctx: &WorkerContext) -> Result<Option<()>, Error> {
+    if let Some(task) = ctx.queue.next::<QueueAction>(5) {
         let task = task.map_err(error::ErrorInternalServerError)?;
         let QueueAction {
             id,
@@ -71,7 +71,7 @@ pub fn pop_and_execute(ctx: &WorkerContext) -> Result<(), Error> {
         match execute_one(ctx, user_id, &params) {
             Ok(_) => {
                 info!("Processed task {}", id);
-                Ok(())
+                Ok(Some(()))
             }
             Err(e) => {
                 error!("Error processing task {}: {:?}", id, e);
@@ -80,6 +80,7 @@ pub fn pop_and_execute(ctx: &WorkerContext) -> Result<(), Error> {
             }
         }
     } else {
-        Ok(())
+        info!("Timed out waiting for task");
+        Ok(None)
     }
 }
