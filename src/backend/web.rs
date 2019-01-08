@@ -125,7 +125,6 @@ fn main() {
 
                 loop {
                     let is_running = *is_running.read().unwrap();
-                    info!("is_running {}", is_running);
                     if is_running {
                         match worker::pop_and_execute(&ctx) {
                             // YOLO

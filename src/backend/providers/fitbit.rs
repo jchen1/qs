@@ -5,23 +5,41 @@ use chrono_tz::{Tz, US::Pacific};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
-struct StepIntradayValue {
+struct IntradayCalories {
+    pub time: String,
+    pub value: f32,
+    pub level: i32,
+    pub mets: i32
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct IntradayIntegral {
     pub time: String,
     pub value: i32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct StepsIntraday {
-    pub dataset: Vec<StepIntradayValue>,
+struct IntradayFloat {
+    pub time: String,
+    pub value: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct StepsResponse {
-    #[serde(rename = "activities-steps-intraday")]
-    pub activities_steps_intraday: StepsIntraday,
+struct IntradayDataset<T> {
+    pub dataset: Vec<T>,
 }
 
-fn to_step(day: NaiveDate, local_tz: Tz, step: &StepIntradayValue, user_id: Uuid) -> Step {
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+struct IntradayResponse {
+    pub activities_steps_intraday: Option<IntradayDataset<IntradayIntegral>>,
+    pub activities_calories_intraday: Option<IntradayDataset<IntradayCalories>>,
+    pub activities_distance_intraday: Option<IntradayDataset<IntradayFloat>>,
+    pub activities_floors_intraday: Option<IntradayDataset<IntradayIntegral>>,
+    pub activities_elevation_intraday: Option<IntradayDataset<IntradayFloat>>,
+}
+
+fn to_step(day: NaiveDate, local_tz: Tz, step: &IntradayIntegral, user_id: Uuid) -> Step {
     // todo proper error handling
     let naive_dt = NaiveDateTime::parse_from_str(
         &format!("{}T{}", day.format("%m-%d-%Y"), step.time),
@@ -57,10 +75,11 @@ pub fn steps_for_day(day: NaiveDate, token: &Token) -> Result<Vec<Step>, Error> 
         .send()
         .map_err(error::ErrorInternalServerError)?;
 
-    let parsed: StepsResponse = request.json().map_err(error::ErrorInternalServerError)?;
+    let parsed: IntradayResponse = request.json().map_err(error::ErrorInternalServerError)?;
 
     let steps: Vec<Step> = parsed
         .activities_steps_intraday
+        .unwrap_or(IntradayDataset { dataset: vec![] })
         .dataset
         .iter()
         .map(|s| to_step(day, tz, s, token.user_id))

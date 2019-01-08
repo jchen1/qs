@@ -59,7 +59,7 @@ fn execute_one(
 }
 
 pub fn pop_and_execute(ctx: &WorkerContext) -> Result<Option<()>, Error> {
-    if let Some(task) = ctx.queue.next::<QueueAction>(5) {
+    if let Some(task) = ctx.queue.next::<QueueAction>(1) {
         let task = task.map_err(error::ErrorInternalServerError)?;
         let QueueAction {
             id,
