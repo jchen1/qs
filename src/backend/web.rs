@@ -13,6 +13,7 @@ mod middlewares;
 pub mod oauth;
 pub mod providers;
 pub mod queue;
+pub mod utils;
 mod worker;
 
 use actix::prelude::*;
@@ -23,10 +24,14 @@ use listenfd::ListenFd;
 use std::thread;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration};
+use std::collections::HashMap;
+use crate::providers::{fitbit::Fitbit, google::Google};
+use crate::oauth::{OAuthProvider};
 
 pub struct AppState {
     db: Addr<db::DbExecutor>,
-    graphql: Addr<graphql::GraphQLExecutor>
+    graphql: Addr<graphql::GraphQLExecutor>,
+    oauth: Addr<oauth::OAuthExecutor>,
 }
 
 fn index(_state: State<AppState>) -> Result<NamedFile, Error> {
@@ -38,22 +43,30 @@ fn main() {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
+    // env vars with dev defaults
     let db_url = dotenv::var("DATABASE_URL")
         .unwrap_or("postgres://postgres:password@localhost/dev_db".to_string());
     let redis_url = dotenv::var("REDIS_URL").unwrap_or("redis://localhost".to_string());
     let cookie_key = dotenv::var("JWT_ISSUE").unwrap_or(" ".repeat(32).to_string());
     let queue_name = dotenv::var("WORKER_QUEUE_NAME").unwrap_or("default".to_string());
     let env = dotenv::var("ENVIORNMENT").unwrap_or("dev".to_string());
+    let num_workers: u32 = dotenv::var("NUM_WORKERS")
+        .unwrap_or("1".to_string())
+        .parse()
+        .unwrap();
+
+    let fitbit_id = dotenv::var("FITBIT_CLIENT_ID").unwrap_or("22DFW9".to_string());
+    let google_id = dotenv::var("GOOGLE_CLIENT_ID").unwrap_or("820579007787-k29hdg84c8170kp4k60jdgj2soncluau.apps.googleusercontent.com".to_string());
+
+    // env vars that crash the system
+    let fitbit_secret = dotenv::var("FITBIT_CLIENT_SECRET").unwrap();
+    let google_secret = dotenv::var("GOOGLE_CLIENT_SECRET").unwrap();
 
     let sys = actix::System::new("qs");
 
     let pool = db::init_pool(db_url);
     let graphql_pool = pool.clone();
 
-    let num_workers: u32 = dotenv::var("NUM_WORKERS")
-        .unwrap_or("1".to_string())
-        .parse()
-        .unwrap();
     let mut threads = vec![];
     let worker_redis_url = redis_url.clone();
     let worker_queue_name = queue_name.clone();
@@ -64,7 +77,7 @@ fn main() {
     let db_addr = SyncArbiter::start(3, move || db::DbExecutor(pool.clone()));
 
     let schema = std::sync::Arc::new(graphql::schema::create_schema());
-    let graphql_addr = SyncArbiter::start(3, move || {
+    let graphql_addr = SyncArbiter::start(2, move || {
         graphql::GraphQLExecutor::new(
             schema.clone(),
             graphql_pool.clone(),
@@ -72,11 +85,20 @@ fn main() {
         )
     });
 
+    let oauth_addr = SyncArbiter::start(2, move || {
+        let mut oauth_providers: HashMap<String, Box<OAuthProvider + Send + Sync>> = HashMap::new();
+        oauth_providers.insert("fitbit".to_string(), Box::new(Fitbit::new(&fitbit_id, &fitbit_secret)));
+        oauth_providers.insert("google".to_string(), Box::new(Google::new(&google_id, &google_secret)));
+
+        oauth::OAuthExecutor(oauth::OAuth::new(oauth_providers))
+    });
+
     let mut listenfd = ListenFd::from_env();
     let mut server = server::new(move || {
         App::with_state(AppState {
             db: db_addr.clone(),
             graphql: graphql_addr.clone(),
+            oauth: oauth_addr.clone()
         })
         .middleware(middleware::Logger::default())
         // TODO secure: true on prod
@@ -92,7 +114,7 @@ fn main() {
         ))
         .resource("/", |r| r.method(Method::GET).with(index))
         .resource("/oauth/{service}/start", |r| {
-            r.method(Method::GET).f(oauth::start_oauth_route)
+            r.method(Method::GET).f(oauth::start_oauth)
         })
         .resource("/oauth/{service}/callback", |r| {
             r.method(Method::GET).f(oauth::oauth_callback)

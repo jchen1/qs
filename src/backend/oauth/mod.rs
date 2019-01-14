@@ -1,7 +1,7 @@
 pub mod fitbit;
 pub mod google;
 
-use actix::prelude::Addr;
+use actix::prelude::{Actor, Addr, Handler, Message, SyncContext};
 use actix_web::middleware::identity::RequestIdentity;
 use actix_web::{
     http::header, AsyncResponder, FromRequest, FutureResponse, HttpRequest, HttpResponse, Path,
@@ -14,21 +14,20 @@ use futures::{
 };
 use std::collections::HashMap;
 use std::fmt::{self, Display};
-use url::percent_encoding::{utf8_percent_encode, DEFAULT_ENCODE_SET};
 use uuid::Uuid;
 
 use super::AppState;
 use crate::db::{self, DbExecutor, UpsertToken, UpsertUser};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct OAuthToken {
     pub service: String,
     pub access_token: String,
     pub expiration: DateTime<Utc>,
     pub refresh_token: String,
-    scopes: Vec<String>,
+    pub scopes: Vec<String>,
     pub user_id: String,
-    email: Option<String>,
+    pub email: Option<String>,
 }
 
 impl From<db::Token> for OAuthToken {
@@ -77,34 +76,106 @@ impl From<reqwest::Error> for OAuthError {
     }
 }
 
-fn urlencode(to_encode: &str) -> String {
-    utf8_percent_encode(to_encode, DEFAULT_ENCODE_SET).to_string()
+pub trait OAuthProvider {
+    fn oauth_redirect_url(&self) -> Result<String, OAuthError>;
+    fn token_from_code(&self, code: &str) -> Result<OAuthToken, OAuthError>;
+    fn refresh_token(&self, token: OAuthToken) -> Result<OAuthToken, OAuthError>;
 }
 
-pub fn refresh_token(token: OAuthToken) -> Result<OAuthToken, OAuthError> {
-    match token.service.as_str() {
-        "fitbit" => fitbit::refresh(token),
-        "google" => google::refresh(token),
-        _ => Err(OAuthError::Error(String::from("Bad service"))),
+// TODO
+pub struct OAuth {
+    providers: HashMap<String, Box<OAuthProvider + Send + Sync>>
+}
+
+impl OAuth {
+    pub fn new(providers: HashMap<String, Box<OAuthProvider + Send + Sync>>) -> Self {
+        OAuth {
+            providers: providers
+        }
+    }
+
+    pub fn redirect_url(&self, service: &str) -> Result<String, OAuthError> {
+        let provider = self.providers.get(&service.to_string()).ok_or(OAuthError::Error("Service not implemented".to_string()))?;
+        provider.oauth_redirect_url()
+    }
+
+    pub fn callback(&self, service: &str, code: &str) -> Result<OAuthToken, OAuthError> {
+        let provider = self.providers.get(&service.to_string()).ok_or(OAuthError::Error("Service not implemented".to_string()))?;
+        provider.token_from_code(code)
+    }
+
+    pub fn refresh_token(&self, token: OAuthToken) -> Result<OAuthToken, OAuthError> {
+        let provider = self.providers.get(&token.service).ok_or(OAuthError::Error("Service not implemented".to_string()))?;
+        provider.refresh_token(token)
     }
 }
 
-pub fn start_oauth(service: String) -> Result<String, OAuthError> {
-    match service.as_str() {
-        "fitbit" => fitbit::redirect(),
-        "google" => google::redirect(),
-        _ => Err(OAuthError::Error(String::from("Bad service"))),
+pub struct OAuthExecutor(pub OAuth);
+
+impl Actor for OAuthExecutor {
+    type Context = SyncContext<Self>;
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OAuthRequest(String);
+
+impl Message for OAuthRequest {
+    type Result = Result<String, OAuthError>;
+}
+
+impl Handler<OAuthRequest> for OAuthExecutor {
+    type Result = Result<String, OAuthError>;
+    fn handle(&mut self, msg: OAuthRequest, _: &mut Self::Context) -> Self::Result {
+        let oauth = &self.0;
+        oauth.redirect_url(msg.0.as_str())
     }
 }
 
-pub fn start_oauth_route(req: &HttpRequest<AppState>) -> HttpResponse {
+#[derive(Serialize, Deserialize)]
+pub struct OAuthCallback {
+    pub service: String,
+    pub code: String,
+}
+
+impl Message for OAuthCallback {
+    type Result = Result<OAuthToken, OAuthError>;
+}
+
+impl Handler<OAuthCallback> for OAuthExecutor {
+    type Result = Result<OAuthToken, OAuthError>;
+    fn handle(&mut self, msg: OAuthCallback, _: &mut Self::Context) -> Self::Result {
+        let oauth = &self.0;
+        oauth.callback(msg.service.as_str(), msg.code.as_str())
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OAuthRefresh(OAuthToken);
+
+impl Message for OAuthRefresh {
+    type Result = Result<OAuthToken, OAuthError>;
+}
+
+impl Handler<OAuthRefresh> for OAuthExecutor {
+    type Result = Result<OAuthToken, OAuthError>;
+    fn handle(&mut self, msg: OAuthRefresh, _: &mut Self::Context) -> Self::Result {
+        let oauth = &self.0;
+        oauth.refresh_token(msg.0)
+    }
+}
+
+pub fn start_oauth(req: &HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
     let service =
         Path::<String>::extract(&req).unwrap_or(Path::<String>::from("not-a-service".to_owned()));
-    let redirect_url = start_oauth(service.into_inner());
-    match redirect_url {
-        Ok(url) => HttpResponse::Found().header(header::LOCATION, url).finish(),
-        Err(_) => HttpResponse::BadRequest().body("Bad request"),
-    }
+    let oauth = &req.state().oauth;
+
+    oauth.send(OAuthRequest(service.to_string()))
+        .from_err()
+        .and_then(|res| match res {
+            Ok(url) => Ok(HttpResponse::Found().header(header::LOCATION, url).finish()),
+            Err(_e) => Ok(HttpResponse::BadRequest().body("Bad request"))
+        })
+        .responder()
 }
 
 fn try_login(

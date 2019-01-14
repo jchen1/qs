@@ -6,6 +6,7 @@ import { ApolloProvider } from 'react-apollo';
 
 import { violet, orange } from './constants';
 import User from './User';
+import Header from './Header';
 
 const client = new ApolloClient({
   uri: 'http://localhost:8080/graphql',
@@ -13,8 +14,10 @@ const client = new ApolloClient({
 
 const StyledApp = styled.div`
   background-color: ${violet};
-  color: ${orange};
   text-align: center;
+  display: grid;
+  min-height: 100vh;
+  grid-template-rows: [header] 120px [content] auto;
 `;
 
 class App extends Component {
@@ -22,6 +25,7 @@ class App extends Component {
     return (
       <ApolloProvider client={client}>
         <StyledApp>
+          <Header />
           <User />
         </StyledApp>
       </ApolloProvider>

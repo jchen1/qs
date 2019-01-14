@@ -45,6 +45,7 @@
       - [ ] workouts
       - [ ] videos?
       - [ ] medical data?
+      - [ ] daily mood?
 - [ ] frontend
   - [x] react
   - [ ] design

@@ -42,6 +42,7 @@ impl From<&db::Token> for Token {
 struct User {
     pub id: Uuid,
     pub email: String,
+    pub name: String,
     pub g_sub: String,
     pub tokens: Vec<Token>,
     pub steps: Vec<db::Step>,
@@ -52,6 +53,7 @@ impl User {
         User {
             id: user.id,
             email: user.email,
+            name: "Jeff Chen".to_string(), // todo
             g_sub: user.g_sub,
             tokens: tokens.iter().map(|t| Token::from(t)).collect(),
             steps: steps,
@@ -82,15 +84,6 @@ graphql_object!(QueryRoot: Context |&self| {
             Ok(None)
         }
     }
-
-    field OAuthServiceURL(&executor, service: String) -> FieldResult<String> {
-        let uri = oauth::start_oauth(service);
-
-        match uri {
-            Ok(uri) => Ok(uri),
-            Err(_e) => Err("Service unimplemented".to_owned())?
-        }
-    }
 });
 
 pub struct MutationRoot;
@@ -100,28 +93,29 @@ graphql_object!(MutationRoot: Context |&self| {
         Ok(User{
             id: Uuid::new_v4(),
             email: new_user.email,
+            name: "Jeff Chen".to_string(),
             g_sub: new_user.g_sub,
             tokens: vec![],
             steps: vec![]
         })
     }
 
-    field refresh_token(&executor, token_id: Uuid) -> FieldResult<Token> {
-        let conn = &executor.context().conn;
+    // field refresh_token(&executor, token_id: Uuid) -> FieldResult<Token> {
+    //     let conn = &executor.context().conn;
 
-        let token = db::Token::find_one(conn, token_id)?;
-        let new_token = oauth::refresh_token(OAuthToken::from(token))?;
-        let updated = db::Token::update(conn, token_id, db::UpdateToken {
-            access_token: Some(&new_token.access_token),
-            access_token_expiry: Some(&new_token.expiration),
-            service_userid: Some(&new_token.user_id),
-            refresh_token: match new_token.refresh_token.as_str() {
-                "" => None,
-                e => Some(&e)
-            }
-        })?;
-        Ok(Token::from(&updated))
-    }
+    //     let token = db::Token::find_one(conn, token_id)?;
+    //     let new_token = oauth::refresh_token(OAuthToken::from(token))?;
+    //     let updated = db::Token::update(conn, token_id, db::UpdateToken {
+    //         access_token: Some(&new_token.access_token),
+    //         access_token_expiry: Some(&new_token.expiration),
+    //         service_userid: Some(&new_token.user_id),
+    //         refresh_token: match new_token.refresh_token.as_str() {
+    //             "" => None,
+    //             e => Some(&e)
+    //         }
+    //     })?;
+    //     Ok(Token::from(&updated))
+    // }
 
     field ingest_data(&executor, service: String, measurement: String, date: NaiveDate) -> FieldResult<bool> {
         let producer = &executor.context().producer;

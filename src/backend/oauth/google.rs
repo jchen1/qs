@@ -9,7 +9,8 @@ pub static GOOGLE_CLIENT_ID: &'static str =
     "820579007787-k29hdg84c8170kp4k60jdgj2soncluau.apps.googleusercontent.com";
 pub static GOOGLE_REDIRECT_URI: &'static str = "http://localhost:8080/oauth/google/callback";
 
-use super::{urlencode, OAuthError, OAuthToken};
+use super::{OAuthError, OAuthToken};
+use crate::utils::{urlencode};
 
 #[derive(Deserialize)]
 pub struct GoogleCallbackResponse {

@@ -5,7 +5,8 @@ pub static FITBIT_CLIENT_ID: &'static str = "22DFW9";
 pub static FITBIT_REDIRECT_URI: &'static str = "http://localhost:8080/oauth/fitbit/callback";
 pub static FITBIT_EXPIRATION_MS: i32 = 604800;
 
-use super::{urlencode, OAuthError, OAuthToken};
+use super::{OAuthError, OAuthToken};
+use crate::utils::{urlencode};
 
 #[derive(Deserialize)]
 pub struct FitbitCallbackResponse {
