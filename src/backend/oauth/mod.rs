@@ -4,12 +4,12 @@ pub mod google;
 use actix::prelude::{Actor, Addr, Handler, Message, SyncContext};
 use actix_web::middleware::identity::RequestIdentity;
 use actix_web::{
-    http::header, AsyncResponder, FromRequest, FutureResponse, HttpRequest, HttpResponse, Path,
+    http::header, error, AsyncResponder, FromRequest, FutureResponse, HttpRequest, HttpResponse, Path,
     Query,
 };
 use chrono::{DateTime, Utc};
 use futures::{
-    future::{ok, result},
+    future::{ok, result, err},
     Future,
 };
 use std::collections::HashMap;
@@ -49,6 +49,7 @@ impl From<db::Token> for OAuthToken {
 pub enum OAuthError {
     DotEnv(dotenv::Error),
     Reqwest(reqwest::Error),
+    ActixError(actix_web::error::Error),
     TokenError(String),
     Error(String),
 }
@@ -60,6 +61,7 @@ impl Display for OAuthError {
             OAuthError::Reqwest(e) => write!(f, "{}", e),
             OAuthError::TokenError(e) => write!(f, "{}", e),
             OAuthError::Error(e) => write!(f, "{}", e),
+            OAuthError::ActixError(e) => write!(f, "{}", e)
         }
     }
 }
@@ -73,6 +75,12 @@ impl From<dotenv::Error> for OAuthError {
 impl From<reqwest::Error> for OAuthError {
     fn from(e: reqwest::Error) -> Self {
         OAuthError::Reqwest(e)
+    }
+}
+
+impl From<actix_web::error::Error> for OAuthError {
+    fn from(e: actix_web::error::Error) -> Self {
+        OAuthError::ActixError(e)
     }
 }
 
@@ -173,7 +181,10 @@ pub fn start_oauth(req: &HttpRequest<AppState>) -> FutureResponse<HttpResponse> 
         .from_err()
         .and_then(|res| match res {
             Ok(url) => Ok(HttpResponse::Found().header(header::LOCATION, url).finish()),
-            Err(_e) => Ok(HttpResponse::BadRequest().body("Bad request"))
+            Err(e) => {
+                error!("{}", e);
+                Err(error::ErrorBadRequest("Bad request"))
+            }
         })
         .responder()
 }
@@ -209,26 +220,30 @@ fn try_login(
     }
 }
 
-pub fn oauth_callback(req: &HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
+// service, token
+fn oauth_callback_params(req: &HttpRequest<AppState>) -> Result<OAuthCallback, actix_web::Error> {
+    let service = Path::<String>::extract(&req)?.into_inner();
+    let query = Query::<HashMap<String, String>>::extract(&req)?;
+    let code = query.get("code").ok_or(error::ErrorBadRequest("Bad request"))?.to_string();
+
+    Ok(OAuthCallback { service: service, code: code })
+}
+
+pub fn oauth_callback(req: &HttpRequest<AppState>) -> Result<FutureResponse<HttpResponse>, actix_web::Error> {
     let req = req.clone();
     let db = req.state().db.clone();
+    let oauth = &req.state().oauth;
+    let params = oauth_callback_params(&req)?;
 
-    let service =
-        Path::<String>::extract(&req).unwrap_or(Path::<String>::from("not-a-service".to_owned()));
-    let query = Query::<HashMap<String, String>>::extract(&req).expect("No query string!");
-
-    let token = match query.get("code") {
-        Some(c) => match service.into_inner().as_str() {
-            "fitbit" => fitbit::oauth_flow(c),
-            "google" => google::oauth_flow(c),
-            _ => Err(OAuthError::Error(String::from("Bad service"))),
-        },
-        None => Err(OAuthError::TokenError(String::from("No token!"))),
-    };
-
-    match token {
-        Ok(t) => {
-            // If not logged in, and we have a new sub, log in or create user
+    Ok(oauth.send(params)
+        .from_err()
+        .and_then(|maybe_token| {
+            match maybe_token {
+                Ok(token) => ok(token),
+                Err(e) => err(error::ErrorInternalServerError(e))
+            }
+        })
+        .and_then(move |t| {
             try_login(&db, &req.identity(), &t)
                 .and_then(move |user_id| {
                     req.remember(user_id.clone());
@@ -247,9 +262,8 @@ pub fn oauth_callback(req: &HttpRequest<AppState>) -> FutureResponse<HttpRespons
                     Err(e) => Ok(HttpResponse::InternalServerError().body(e.to_string())),
                 })
                 .responder()
-        }
-        Err(e) => ok(HttpResponse::InternalServerError().body(format!("{:?}", e))).responder(),
-    }
+        })
+        .responder())
 }
 
 pub fn logout(req: &HttpRequest<AppState>) -> HttpResponse {

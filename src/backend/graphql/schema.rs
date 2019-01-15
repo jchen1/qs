@@ -5,7 +5,6 @@ use uuid::Uuid;
 
 use super::Context;
 use crate::db;
-use crate::oauth::{self, OAuthToken};
 use crate::queue::{QueueAction, QueueActionParams};
 use chrono::{DateTime, NaiveDate, Utc};
 
