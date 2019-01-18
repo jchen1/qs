@@ -87,7 +87,6 @@ pub trait OAuthProvider {
     fn refresh_token(&self, token: OAuthToken) -> Result<OAuthToken, OAuthError>;
 }
 
-// TODO
 pub struct OAuth {
     providers: HashMap<String, Box<OAuthProvider + Send + Sync>>,
 }
