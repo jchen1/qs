@@ -55,7 +55,8 @@ impl From<GoogleCallbackResponse> for OAuthToken {
                 // TODO throw an error? idk
                 None => "".to_string(),
             },
-            user_id: claims.sub,
+            user_id: claims.sub.clone(),
+            g_sub: Some(claims.sub.clone()),
             email: Some(claims.email),
             scopes: gcr.scope.split(" ").map(String::from).collect(),
             expiration: Utc::now() + Duration::seconds(gcr.expires_in as i64),

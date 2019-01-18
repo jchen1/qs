@@ -25,6 +25,7 @@ pub struct OAuthToken {
     pub scopes: Vec<String>,
     pub user_id: String,
     pub email: Option<String>,
+    pub g_sub: Option<String>
 }
 
 impl From<db::Token> for OAuthToken {
@@ -38,6 +39,7 @@ impl From<db::Token> for OAuthToken {
             scopes: vec![],
             user_id: t.service_userid,
             email: None,
+            g_sub: None
         }
     }
 }
@@ -203,14 +205,14 @@ fn try_login(
     if let Some(id) = maybe_userid {
         info!("Already logged in as: {}", id);
         return Box::new(result::<String, actix_web::Error>(Ok(id.to_string())));
-    } else if token.service == "google" {
+    } else if let Some(g_sub) = token.g_sub.clone() {
         db.send(UpsertUser {
             email: match &token.email {
                 Some(email) => email,
                 None => unimplemented!(),
             }
             .clone(),
-            g_sub: token.user_id.clone(),
+            g_sub: g_sub,
         })
         .from_err()
         .and_then(|res| match res {
