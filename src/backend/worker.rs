@@ -12,18 +12,26 @@ pub struct WorkerContext {
     pub conn: Conn,
 }
 
-fn ingest_steps_bulk(ctx: &WorkerContext, user_id: &Uuid, service: &str, start_date: &NaiveDate, num_days: &u32) -> Result<(), Error> {
+fn ingest_steps_bulk(
+    ctx: &WorkerContext,
+    user_id: &Uuid,
+    service: &str,
+    start_date: &NaiveDate,
+    num_days: &u32,
+) -> Result<(), Error> {
     for i in 0..*num_days {
         let action = QueueAction {
             id: Uuid::new_v4(),
             user_id: user_id.clone(),
             params: QueueActionParams::IngestSteps(
                 service.to_string(),
-                *start_date + Duration::days(i as i64)
-            )
+                *start_date + Duration::days(i as i64),
+            ),
         };
 
-        ctx.queue.push(action).map_err(error::ErrorInternalServerError)?;
+        ctx.queue
+            .push(action)
+            .map_err(error::ErrorInternalServerError)?;
     }
 
     Ok(())
@@ -37,7 +45,7 @@ fn ingest_steps(
 ) -> Result<(), Error> {
     let token = Token::find_by_uid_service(&ctx.conn, user_id, &service)
         .map_err(error::ErrorInternalServerError)?;
-    let steps_for_day = fitbit::steps_for_day(date, &token)?;
+    let steps_for_day = fitbit::measurement_for_day::<Step>(date, &token)?;
     Step::insert_many(&ctx.conn, &steps_for_day)
         .map_err(error::ErrorInternalServerError)
         .map(|_| ())
@@ -51,7 +59,7 @@ fn execute_one(
     match action {
         QueueActionParams::IngestSteps(service, date) => {
             ingest_steps(ctx, user_id, service.to_string(), date.clone())
-        },
+        }
         QueueActionParams::BulkIngestSteps(service, start_date, num_days) => {
             ingest_steps_bulk(ctx, user_id, service, start_date, num_days)
         }

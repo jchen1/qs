@@ -7,6 +7,7 @@ use diesel::prelude::*;
 use uuid::Uuid;
 
 use crate::db::{schema, DbExecutor, Handler, Message};
+use crate::providers::fitbit;
 use actix_web::{error, Error};
 
 #[derive(GraphQLObject, Debug, Clone, Serialize, Deserialize, Queryable, Insertable)]
@@ -28,11 +29,22 @@ impl Step {
             .get_result::<Step>(conn)?)
     }
 
-    pub fn for_period(conn: &PgConnection, the_user_id: &Uuid, start: &DateTime<Utc>, end: &DateTime<Utc>) -> Result<Vec<Step>, diesel::result::Error> {
+    pub fn for_period(
+        conn: &PgConnection,
+        the_user_id: &Uuid,
+        start: &DateTime<Utc>,
+        end: &DateTime<Utc>,
+    ) -> Result<Vec<Step>, diesel::result::Error> {
         use self::schema::steps::dsl::*;
 
-        Ok(steps.filter(user_id.eq(the_user_id).and(time.ge(start).and(time.lt(end))))
-            .order(time.desc()).load::<Step>(conn)?)
+        Ok(steps
+            .filter(
+                user_id
+                    .eq(the_user_id)
+                    .and(time.ge(start).and(time.lt(end))),
+            )
+            .order(time.desc())
+            .load::<Step>(conn)?)
     }
 
     pub fn insert(conn: &PgConnection, step: &Step) -> Result<Step, diesel::result::Error> {
@@ -52,6 +64,37 @@ impl Step {
         use self::schema::steps::dsl::*;
 
         diesel::insert_into(steps).values(the_steps).execute(conn)
+    }
+}
+
+impl fitbit::Measurement for Step {
+    fn new(user_id: Uuid, time: DateTime<Utc>, measurement: fitbit::IntradayValue) -> Result<Self, Error> {
+        match measurement {
+            fitbit::IntradayValue::Integral(count) => {
+                Ok(Step {
+                    user_id: user_id,
+                    count: count.value,
+                    source: "fitbit".to_string(),
+                    time: time,
+                })
+            },
+            _ => Err(error::ErrorInternalServerError("Wrong type!"))
+        }
+    }
+
+    fn name() -> &'static str {
+        "step"
+    }
+
+    fn parse_response(r: fitbit::IntradayResponse) -> Option<Vec<fitbit::IntradayValue>> {
+        r.activities_steps_intraday.and_then(|a| {
+            Some(
+                a.dataset
+                    .into_iter()
+                    .map(|v| fitbit::IntradayValue::Integral(v))
+                    .collect(),
+            )
+        })
     }
 }
 

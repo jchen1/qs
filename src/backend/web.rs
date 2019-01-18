@@ -16,17 +16,17 @@ pub mod queue;
 pub mod utils;
 mod worker;
 
+use crate::oauth::OAuthProvider;
+use crate::providers::{fitbit::Fitbit, google::Google};
 use actix::prelude::*;
 use actix_web::middleware::identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::middleware::session::{CookieSessionBackend, SessionStorage};
 use actix_web::{fs::NamedFile, http::Method, middleware, server, App, Error, State};
 use listenfd::ListenFd;
-use std::thread;
-use std::sync::{Arc, RwLock};
-use std::time::{Duration};
 use std::collections::HashMap;
-use crate::providers::{fitbit::Fitbit, google::Google};
-use crate::oauth::{OAuthProvider};
+use std::sync::{Arc, RwLock};
+use std::thread;
+use std::time::Duration;
 
 pub struct AppState {
     db: Addr<db::DbExecutor>,
@@ -56,7 +56,9 @@ fn main() {
         .unwrap();
 
     let fitbit_id = dotenv::var("FITBIT_CLIENT_ID").unwrap_or("22DFW9".to_string());
-    let google_id = dotenv::var("GOOGLE_CLIENT_ID").unwrap_or("820579007787-k29hdg84c8170kp4k60jdgj2soncluau.apps.googleusercontent.com".to_string());
+    let google_id = dotenv::var("GOOGLE_CLIENT_ID").unwrap_or(
+        "820579007787-k29hdg84c8170kp4k60jdgj2soncluau.apps.googleusercontent.com".to_string(),
+    );
 
     // env vars that crash the system
     let fitbit_secret = dotenv::var("FITBIT_CLIENT_SECRET").unwrap();
@@ -87,8 +89,14 @@ fn main() {
 
     let oauth_addr = SyncArbiter::start(2, move || {
         let mut oauth_providers: HashMap<String, Box<OAuthProvider + Send + Sync>> = HashMap::new();
-        oauth_providers.insert("fitbit".to_string(), Box::new(Fitbit::new(&fitbit_id, &fitbit_secret)));
-        oauth_providers.insert("google".to_string(), Box::new(Google::new(&google_id, &google_secret)));
+        oauth_providers.insert(
+            "fitbit".to_string(),
+            Box::new(Fitbit::new(&fitbit_id, &fitbit_secret)),
+        );
+        oauth_providers.insert(
+            "google".to_string(),
+            Box::new(Google::new(&google_id, &google_secret)),
+        );
 
         oauth::OAuthExecutor(oauth::OAuth::new(oauth_providers))
     });
@@ -98,7 +106,7 @@ fn main() {
         App::with_state(AppState {
             db: db_addr.clone(),
             graphql: graphql_addr.clone(),
-            oauth: oauth_addr.clone()
+            oauth: oauth_addr.clone(),
         })
         .middleware(middleware::Logger::default())
         // TODO secure: true on prod
@@ -151,9 +159,7 @@ fn main() {
                         match worker::pop_and_execute(&ctx) {
                             // YOLO
                             Ok(Some(_)) => (),
-                            Ok(None) => {
-                                thread::sleep(Duration::from_secs(5))
-                            }
+                            Ok(None) => thread::sleep(Duration::from_secs(5)),
                             Err(_) => (),
                         }
                     } else {

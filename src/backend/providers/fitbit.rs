@@ -1,43 +1,81 @@
-use crate::db::{Step, Token};
-use crate::utils::{urlencode};
-use crate::oauth::{OAuthError, OAuthToken, OAuthProvider};
+use crate::db::{Token};
+use crate::oauth::{OAuthError, OAuthProvider, OAuthToken};
+use crate::utils::urlencode;
 use actix_web::{error, Error};
-use chrono::{offset::TimeZone, NaiveDate, NaiveDateTime, Utc, Duration};
+use chrono::{offset::TimeZone, DateTime, Duration, NaiveDate, NaiveDateTime, Utc};
 use chrono_tz::{Tz, US::Pacific};
-use uuid::Uuid;
 use reqwest;
+use uuid::Uuid;
 
 pub static FITBIT_REDIRECT_URI: &'static str = "http://localhost:8080/oauth/fitbit/callback";
 pub static FITBIT_EXPIRATION_MS: i32 = 604800;
 
-#[derive(Debug, Serialize, Deserialize)]
-struct IntradayCalories {
-    pub time: String,
-    pub value: f32,
-    pub level: i32,
-    pub mets: i32
+// TODO put this somewhere it makes sense
+pub trait Measurement: Sized {
+    // todo non-integral
+    fn new(user_id: uuid::Uuid, time: DateTime<Utc>, measurement: IntradayValue) -> Result<Self, Error>;
+    fn parse_response(r: IntradayResponse) -> Option<Vec<IntradayValue>>;
+    fn name() -> &'static str;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct IntradayIntegral {
+pub struct IntradayCalories {
+    pub time: String,
+    pub value: f32,
+    pub level: i32,
+    pub mets: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IntradayIntegral {
     pub time: String,
     pub value: i32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct IntradayFloat {
+pub struct IntradayFloat {
     pub time: String,
     pub value: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct IntradayDataset<T> {
+pub enum IntradayValue {
+    Integral(IntradayIntegral),
+    Float(IntradayFloat),
+    Caloric(IntradayCalories),
+}
+
+impl IntradayValue {
+    fn time_str(&self) -> &str {
+        match self {
+            IntradayValue::Integral(v) => &v.time,
+            IntradayValue::Float(v) => &v.time,
+            IntradayValue::Caloric(v) => &v.time
+        }
+    }
+
+    fn time_utc(&self, day: NaiveDate, local_tz: Tz) -> Result<DateTime<Utc>, Error> {
+        let naive_dt = NaiveDateTime::parse_from_str(
+            &format!("{}T{}", day.format("%m-%d-%Y"), self.time_str()),
+            "%m-%d-%YT%H:%M:%S",
+        )
+        .map_err(error::ErrorInternalServerError)?;
+        let local_dt = local_tz.from_local_datetime(&naive_dt).earliest().ok_or(
+            error::ErrorInternalServerError("error converting timestamp"),
+        )?;
+
+        Ok(Utc.from_utc_datetime(&local_dt.naive_utc()))
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IntradayDataset<T> {
     pub dataset: Vec<T>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-struct IntradayResponse {
+pub struct IntradayResponse {
     pub activities_steps_intraday: Option<IntradayDataset<IntradayIntegral>>,
     pub activities_calories_intraday: Option<IntradayDataset<IntradayCalories>>,
     pub activities_distance_intraday: Option<IntradayDataset<IntradayFloat>>,
@@ -45,20 +83,17 @@ struct IntradayResponse {
     pub activities_elevation_intraday: Option<IntradayDataset<IntradayFloat>>,
 }
 
-fn to_step(day: NaiveDate, local_tz: Tz, step: &IntradayIntegral, user_id: Uuid) -> Step {
-    // todo proper error handling
-    let naive_dt = NaiveDateTime::parse_from_str(
-        &format!("{}T{}", day.format("%m-%d-%Y"), step.time),
-        "%m-%d-%YT%H:%M:%S",
+fn to_measurement<T: Measurement>(
+    day: NaiveDate,
+    local_tz: Tz,
+    measurement: IntradayValue,
+    user_id: Uuid,
+) -> Result<T, Error> {
+    T::new(
+        user_id,
+        measurement.time_utc(day, local_tz)?,
+        measurement,
     )
-    .unwrap();
-    let local_dt = local_tz.from_local_datetime(&naive_dt).unwrap();
-    Step {
-        time: Utc.from_utc_datetime(&local_dt.naive_utc()),
-        user_id: user_id,
-        source: "fitbit".to_string(),
-        count: step.value,
-    }
 }
 
 pub fn local_tz(_token: &Token) -> Result<Tz, Error> {
@@ -66,12 +101,13 @@ pub fn local_tz(_token: &Token) -> Result<Tz, Error> {
     Ok(Pacific)
 }
 
-pub fn steps_for_day(day: NaiveDate, token: &Token) -> Result<Vec<Step>, Error> {
+pub fn measurement_for_day<T: Measurement>(day: NaiveDate, token: &Token) -> Result<Vec<T>, Error> {
     let client = reqwest::Client::new();
 
     let tz = local_tz(token)?;
     let endpoint = format!(
-        "https://api.fitbit.com/1/user/-/activities/steps/date/{}/1d/1min/time/00:00/23:59.json",
+        "https://api.fitbit.com/1/user/-/activities/{}/date/{}/1d/1min/time/00:00/23:59.json",
+        T::name(),
         day.format("%Y-%m-%d")
     );
 
@@ -81,27 +117,30 @@ pub fn steps_for_day(day: NaiveDate, token: &Token) -> Result<Vec<Step>, Error> 
         .send()
         .map_err(error::ErrorInternalServerError)?;
 
-    let parsed: IntradayResponse = request.json().map_err(error::ErrorInternalServerError)?;
+    let resp: IntradayResponse = request.json().map_err(error::ErrorInternalServerError)?;
 
-    let steps: Vec<Step> = parsed
-        .activities_steps_intraday
-        .unwrap_or(IntradayDataset { dataset: vec![] })
-        .dataset
-        .iter()
-        .map(|s| to_step(day, tz, s, token.user_id))
+    let measurements: Vec<T> = T::parse_response(resp)
+        .unwrap_or(vec![])
+        .into_iter()
+        .map(|s| to_measurement(day, tz, s, token.user_id))
+        .filter(|s| s.is_ok())
+        .map(|s| s.expect("uh oh"))
         .collect();
 
-    Ok(steps)
+    Ok(measurements)
 }
 
 pub struct Fitbit {
     oauth_id: String,
-    oauth_secret: String
+    oauth_secret: String,
 }
 
 impl Fitbit {
     pub fn new(oauth_id: &str, oauth_secret: &str) -> Fitbit {
-        Fitbit { oauth_id: oauth_id.to_owned(), oauth_secret: oauth_secret.to_owned() }
+        Fitbit {
+            oauth_id: oauth_id.to_owned(),
+            oauth_secret: oauth_secret.to_owned(),
+        }
     }
 }
 

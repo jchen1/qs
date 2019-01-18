@@ -2,22 +2,25 @@ use jsonwebtoken::{dangerous_unsafe_decode, TokenData};
 use time::Duration;
 use uuid::Uuid;
 
-use crate::oauth::{OAuthError, OAuthToken, OAuthProvider};
-use crate::utils::{urlencode};
+use crate::oauth::{OAuthError, OAuthProvider, OAuthToken};
+use crate::utils::urlencode;
 
-use chrono::{Utc};
+use chrono::Utc;
 use reqwest;
 
 pub static GOOGLE_REDIRECT_URI: &'static str = "http://localhost:8080/oauth/google/callback";
 
 pub struct Google {
     oauth_id: String,
-    oauth_secret: String
+    oauth_secret: String,
 }
 
 impl Google {
     pub fn new(oauth_id: &str, oauth_secret: &str) -> Google {
-        Google { oauth_id: oauth_id.to_owned(), oauth_secret: oauth_secret.to_owned() }
+        Google {
+            oauth_id: oauth_id.to_owned(),
+            oauth_secret: oauth_secret.to_owned(),
+        }
     }
 }
 

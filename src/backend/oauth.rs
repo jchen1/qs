@@ -1,15 +1,12 @@
-pub mod fitbit;
-pub mod google;
-
 use actix::prelude::{Actor, Addr, Handler, Message, SyncContext};
 use actix_web::middleware::identity::RequestIdentity;
 use actix_web::{
-    http::header, error, AsyncResponder, FromRequest, FutureResponse, HttpRequest, HttpResponse, Path,
-    Query,
+    error, http::header, AsyncResponder, FromRequest, FutureResponse, HttpRequest, HttpResponse,
+    Path, Query,
 };
 use chrono::{DateTime, Utc};
 use futures::{
-    future::{ok, result, err},
+    future::{err, ok, result},
     Future,
 };
 use std::collections::HashMap;
@@ -61,7 +58,7 @@ impl Display for OAuthError {
             OAuthError::Reqwest(e) => write!(f, "{}", e),
             OAuthError::TokenError(e) => write!(f, "{}", e),
             OAuthError::Error(e) => write!(f, "{}", e),
-            OAuthError::ActixError(e) => write!(f, "{}", e)
+            OAuthError::ActixError(e) => write!(f, "{}", e),
         }
     }
 }
@@ -92,28 +89,37 @@ pub trait OAuthProvider {
 
 // TODO
 pub struct OAuth {
-    providers: HashMap<String, Box<OAuthProvider + Send + Sync>>
+    providers: HashMap<String, Box<OAuthProvider + Send + Sync>>,
 }
 
 impl OAuth {
     pub fn new(providers: HashMap<String, Box<OAuthProvider + Send + Sync>>) -> Self {
         OAuth {
-            providers: providers
+            providers: providers,
         }
     }
 
     pub fn redirect_url(&self, service: &str) -> Result<String, OAuthError> {
-        let provider = self.providers.get(&service.to_string()).ok_or(OAuthError::Error("Service not implemented".to_string()))?;
+        let provider = self
+            .providers
+            .get(&service.to_string())
+            .ok_or(OAuthError::Error("Service not implemented".to_string()))?;
         provider.oauth_redirect_url()
     }
 
     pub fn callback(&self, service: &str, code: &str) -> Result<OAuthToken, OAuthError> {
-        let provider = self.providers.get(&service.to_string()).ok_or(OAuthError::Error("Service not implemented".to_string()))?;
+        let provider = self
+            .providers
+            .get(&service.to_string())
+            .ok_or(OAuthError::Error("Service not implemented".to_string()))?;
         provider.token_from_code(code)
     }
 
     pub fn refresh_token(&self, token: OAuthToken) -> Result<OAuthToken, OAuthError> {
-        let provider = self.providers.get(&token.service).ok_or(OAuthError::Error("Service not implemented".to_string()))?;
+        let provider = self
+            .providers
+            .get(&token.service)
+            .ok_or(OAuthError::Error("Service not implemented".to_string()))?;
         provider.refresh_token(token)
     }
 }
@@ -177,7 +183,8 @@ pub fn start_oauth(req: &HttpRequest<AppState>) -> FutureResponse<HttpResponse> 
         Path::<String>::extract(&req).unwrap_or(Path::<String>::from("not-a-service".to_owned()));
     let oauth = &req.state().oauth;
 
-    oauth.send(OAuthRequest(service.to_string()))
+    oauth
+        .send(OAuthRequest(service.to_string()))
         .from_err()
         .and_then(|res| match res {
             Ok(url) => Ok(HttpResponse::Found().header(header::LOCATION, url).finish()),
@@ -220,28 +227,30 @@ fn try_login(
     }
 }
 
-// service, token
-fn oauth_callback_params(req: &HttpRequest<AppState>) -> Result<OAuthCallback, actix_web::Error> {
-    let service = Path::<String>::extract(&req)?.into_inner();
-    let query = Query::<HashMap<String, String>>::extract(&req)?;
-    let code = query.get("code").ok_or(error::ErrorBadRequest("Bad request"))?.to_string();
-
-    Ok(OAuthCallback { service: service, code: code })
-}
-
-pub fn oauth_callback(req: &HttpRequest<AppState>) -> Result<FutureResponse<HttpResponse>, actix_web::Error> {
+pub fn oauth_callback(
+    req: &HttpRequest<AppState>,
+) -> Result<FutureResponse<HttpResponse>, actix_web::Error> {
     let req = req.clone();
     let db = req.state().db.clone();
     let oauth = &req.state().oauth;
-    let params = oauth_callback_params(&req)?;
 
-    Ok(oauth.send(params)
+    let service = Path::<String>::extract(&req)?.into_inner();
+    let query = Query::<HashMap<String, String>>::extract(&req)?;
+    let code = query
+        .get("code")
+        .ok_or(error::ErrorBadRequest("Bad request"))?
+        .to_string();
+    let params = OAuthCallback {
+        service: service,
+        code: code,
+    };
+
+    Ok(oauth
+        .send(params)
         .from_err()
-        .and_then(|maybe_token| {
-            match maybe_token {
-                Ok(token) => ok(token),
-                Err(e) => err(error::ErrorInternalServerError(e))
-            }
+        .and_then(|maybe_token| match maybe_token {
+            Ok(token) => ok(token),
+            Err(e) => err(error::ErrorInternalServerError(e)),
         })
         .and_then(move |t| {
             try_login(&db, &req.identity(), &t)
