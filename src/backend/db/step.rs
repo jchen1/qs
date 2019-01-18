@@ -67,7 +67,7 @@ impl Step {
     }
 }
 
-impl fitbit::Measurement for Step {
+impl fitbit::IntradayMeasurement for Step {
     fn new(user_id: Uuid, time: DateTime<Utc>, measurement: fitbit::IntradayValue) -> Result<Self, Error> {
         match measurement {
             fitbit::IntradayValue::Integral(count) => {

@@ -19,16 +19,21 @@
 - [ ] tests
 - [ ] data ingest
   - [ ] workers
-    - [ ] redis queues
+    - [x] redis queues
     - [ ] error handling
     - [ ] dlq
   - [ ] APIs
     - [ ] Fitbit API
-      - [ ] weight
-      - [ ] sleep
-      - [ ] body fat
-      - [ ] exercise/steps
-      - [ ] cals burned
+      - [x] intraday
+        - [x] steps
+        - [x] distance
+        - [x] elevation
+        - [x] floors
+        - [x] cals burned
+      - [ ] daily
+        - [x] sleep
+        - [ ] body fat
+        - [ ] weight
       - [ ] historical data
     - [ ] google
       - [ ] location?
