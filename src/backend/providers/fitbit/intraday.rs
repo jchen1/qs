@@ -15,7 +15,7 @@ pub trait IntradayMeasurement: Sized {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IntradayCalories {
     pub time: String,
-    pub value: f32,
+    pub value: f64,
     pub level: i32,
     pub mets: i32,
 }
@@ -29,7 +29,7 @@ pub struct IntradayIntegral {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IntradayFloat {
     pub time: String,
-    pub value: f32,
+    pub value: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

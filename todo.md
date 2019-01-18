@@ -31,7 +31,7 @@
         - [x] floors
         - [x] cals burned
       - [ ] daily
-        - [x] sleep
+        - [ ] sleep
         - [ ] body fat
         - [ ] weight
       - [ ] historical data
