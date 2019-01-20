@@ -100,32 +100,11 @@ graphql_object!(MutationRoot: Context |&self| {
         })
     }
 
-    field ingest_data(&executor, service: String, measurement: IntradayMetric, date: NaiveDate) -> FieldResult<bool> {
+    field ingest_intraday(&executor, service: String, measurement: String, date: NaiveDate, num_days: Option<i32>) -> FieldResult<bool> {
         let producer = &executor.context().producer;
         let user_id = executor.context().user.clone().ok_or("Not logged in".to_owned())?.id;
 
-        match service.as_str() {
-            "fitbit" => Ok(()),
-            _ => Err("only fitbit is supported".to_owned())
-        }?;
-
-        let action = QueueAction {
-            id: Uuid::new_v4(),
-            user_id: user_id.clone(),
-            params: QueueActionParams::IngestIntraday(
-                measurement,
-                date
-            )
-        };
-
-        producer.push(action)?;
-
-        Ok(true)
-    }
-
-    field ingest_data_bulk(&executor, service: String, measurement: String, date: NaiveDate, num_days: i32) -> FieldResult<bool> {
-        let producer = &executor.context().producer;
-        let user_id = executor.context().user.clone().ok_or("Not logged in".to_owned())?.id;
+        let num_days = num_days.unwrap_or(1);
         match (service.as_str(), num_days < 0) {
             ("fitbit", false) => Ok(()),
             ("fitbit", true) => Err("num_days must be positive".to_owned()),

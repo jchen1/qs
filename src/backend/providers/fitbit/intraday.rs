@@ -4,8 +4,8 @@ use actix_web::{error, Error};
 use chrono::{offset::TimeZone, DateTime, NaiveDate, NaiveDateTime, Utc};
 use chrono_tz::Tz;
 use reqwest;
-use uuid::Uuid;
 use std::fmt::Debug;
+use uuid::Uuid;
 
 #[derive(GraphQLEnum, Serialize, Deserialize, Debug, Clone)]
 pub enum IntradayMetric {
