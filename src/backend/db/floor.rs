@@ -6,7 +6,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use uuid::Uuid;
 
-use crate::db::{Object, schema, DbExecutor, Handler, Message};
+use crate::db::{schema, DbExecutor, Handler, Message, Object};
 use crate::providers::fitbit;
 use actix_web::{error, Error};
 
@@ -70,17 +70,19 @@ impl Object for Floor {
 }
 
 impl fitbit::IntradayMeasurement for Floor {
-    fn new(user_id: Uuid, time: DateTime<Utc>, measurement: fitbit::IntradayValue) -> Result<Self, Error> {
+    fn new(
+        user_id: Uuid,
+        time: DateTime<Utc>,
+        measurement: fitbit::IntradayValue,
+    ) -> Result<Self, Error> {
         match measurement {
-            fitbit::IntradayValue::Integral(count) => {
-                Ok(Floor {
-                    user_id: user_id,
-                    count: count.value,
-                    source: "fitbit".to_string(),
-                    time: time,
-                })
-            },
-            _ => Err(error::ErrorInternalServerError("Wrong type!"))
+            fitbit::IntradayValue::Integral(count) => Ok(Floor {
+                user_id: user_id,
+                count: count.value,
+                source: "fitbit".to_string(),
+                time: time,
+            }),
+            _ => Err(error::ErrorInternalServerError("Wrong type!")),
         }
     }
 

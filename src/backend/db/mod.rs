@@ -5,16 +5,16 @@ use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
 use std::ops::Deref;
 
-pub mod step;
+pub mod calorie;
 pub mod distance;
 pub mod elevation;
 pub mod floor;
-pub mod calorie;
-pub use crate::db::step::*;
+pub mod step;
+pub use crate::db::calorie::*;
 pub use crate::db::distance::*;
 pub use crate::db::elevation::*;
 pub use crate::db::floor::*;
-pub use crate::db::calorie::*;
+pub use crate::db::step::*;
 
 pub mod token;
 pub mod user;

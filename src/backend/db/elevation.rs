@@ -6,7 +6,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use uuid::Uuid;
 
-use crate::db::{Object, schema, DbExecutor, Handler, Message};
+use crate::db::{schema, DbExecutor, Handler, Message, Object};
 use crate::providers::fitbit;
 use actix_web::{error, Error};
 
@@ -49,12 +49,20 @@ impl Elevation {
 }
 
 impl Object for Elevation {
-    fn insert(conn: &PgConnection, elevation: &Elevation) -> Result<Elevation, diesel::result::Error> {
+    fn insert(
+        conn: &PgConnection,
+        elevation: &Elevation,
+    ) -> Result<Elevation, diesel::result::Error> {
         use self::schema::elevations::dsl::*;
 
-        diesel::insert_into(elevations).values(elevation).execute(conn)?;
+        diesel::insert_into(elevations)
+            .values(elevation)
+            .execute(conn)?;
 
-        Ok(Elevation::find_one(conn, (&elevation.user_id, &elevation.time))?)
+        Ok(Elevation::find_one(
+            conn,
+            (&elevation.user_id, &elevation.time),
+        )?)
     }
 
     // todo overload it
@@ -65,22 +73,26 @@ impl Object for Elevation {
     ) -> Result<usize, diesel::result::Error> {
         use self::schema::elevations::dsl::*;
 
-        diesel::insert_into(elevations).values(the_elevations).execute(conn)
+        diesel::insert_into(elevations)
+            .values(the_elevations)
+            .execute(conn)
     }
 }
 
 impl fitbit::IntradayMeasurement for Elevation {
-    fn new(user_id: Uuid, time: DateTime<Utc>, measurement: fitbit::IntradayValue) -> Result<Self, Error> {
+    fn new(
+        user_id: Uuid,
+        time: DateTime<Utc>,
+        measurement: fitbit::IntradayValue,
+    ) -> Result<Self, Error> {
         match measurement {
-            fitbit::IntradayValue::Float(count) => {
-                Ok(Elevation {
-                    user_id: user_id,
-                    count: count.value,
-                    source: "fitbit".to_string(),
-                    time: time,
-                })
-            },
-            _ => Err(error::ErrorInternalServerError("Wrong type!"))
+            fitbit::IntradayValue::Float(count) => Ok(Elevation {
+                user_id: user_id,
+                count: count.value,
+                source: "fitbit".to_string(),
+                time: time,
+            }),
+            _ => Err(error::ErrorInternalServerError("Wrong type!")),
         }
     }
 

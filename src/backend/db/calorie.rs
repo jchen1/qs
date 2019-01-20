@@ -6,7 +6,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use uuid::Uuid;
 
-use crate::db::{Object, schema, DbExecutor, Handler, Message};
+use crate::db::{schema, DbExecutor, Handler, Message, Object};
 use crate::providers::fitbit;
 use actix_web::{error, Error};
 
@@ -18,7 +18,7 @@ pub struct Calorie {
     pub source: String,
     pub count: f64,
     pub level: i32,
-    pub mets: i32
+    pub mets: i32,
 }
 
 impl Calorie {
@@ -54,7 +54,9 @@ impl Object for Calorie {
     fn insert(conn: &PgConnection, calorie: &Calorie) -> Result<Calorie, diesel::result::Error> {
         use self::schema::calories::dsl::*;
 
-        diesel::insert_into(calories).values(calorie).execute(conn)?;
+        diesel::insert_into(calories)
+            .values(calorie)
+            .execute(conn)?;
 
         Ok(Calorie::find_one(conn, (&calorie.user_id, &calorie.time))?)
     }
@@ -67,24 +69,28 @@ impl Object for Calorie {
     ) -> Result<usize, diesel::result::Error> {
         use self::schema::calories::dsl::*;
 
-        diesel::insert_into(calories).values(the_calories).execute(conn)
+        diesel::insert_into(calories)
+            .values(the_calories)
+            .execute(conn)
     }
 }
 
 impl fitbit::IntradayMeasurement for Calorie {
-    fn new(user_id: Uuid, time: DateTime<Utc>, measurement: fitbit::IntradayValue) -> Result<Self, Error> {
+    fn new(
+        user_id: Uuid,
+        time: DateTime<Utc>,
+        measurement: fitbit::IntradayValue,
+    ) -> Result<Self, Error> {
         match measurement {
-            fitbit::IntradayValue::Caloric(count) => {
-                Ok(Calorie {
-                    user_id: user_id,
-                    count: count.value,
-                    source: "fitbit".to_string(),
-                    time: time,
-                    level: count.level,
-                    mets: count.mets
-                })
-            },
-            _ => Err(error::ErrorInternalServerError("Wrong type!"))
+            fitbit::IntradayValue::Caloric(count) => Ok(Calorie {
+                user_id: user_id,
+                count: count.value,
+                source: "fitbit".to_string(),
+                time: time,
+                level: count.level,
+                mets: count.mets,
+            }),
+            _ => Err(error::ErrorInternalServerError("Wrong type!")),
         }
     }
 

@@ -5,8 +5,8 @@ use uuid::Uuid;
 
 use super::Context;
 use crate::db;
+use crate::providers::fitbit::IntradayMetric;
 use crate::queue::{QueueAction, QueueActionParams};
-use crate::providers::fitbit::{IntradayMetric};
 use chrono::{DateTime, NaiveDate, Utc};
 
 #[derive(GraphQLInputObject)]

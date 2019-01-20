@@ -158,20 +158,27 @@ fn main() {
             threads.push(thread::spawn(move || {
                 info!("Started thread {}", i);
 
-                let mut oauth_providers: HashMap<String, Box<OAuthProvider + Send + Sync>> = HashMap::new();
+                let mut oauth_providers: HashMap<String, Box<OAuthProvider + Send + Sync>> =
+                    HashMap::new();
                 oauth_providers.insert(
                     "fitbit".to_string(),
-                    Box::new(Fitbit::new(&fitbit_id_clone.clone(), &fitbit_secret_clone.clone())),
+                    Box::new(Fitbit::new(
+                        &fitbit_id_clone.clone(),
+                        &fitbit_secret_clone.clone(),
+                    )),
                 );
                 oauth_providers.insert(
                     "google".to_string(),
-                    Box::new(Google::new(&google_id_clone.clone(), &google_secret_clone.clone())),
+                    Box::new(Google::new(
+                        &google_id_clone.clone(),
+                        &google_secret_clone.clone(),
+                    )),
                 );
                 let queue = queue::init_queue(redis_url.clone(), queue_name.clone());
                 let ctx = worker::WorkerContext {
                     queue: queue,
                     conn: db::Conn(conn),
-                    oauth: oauth::OAuth::new(oauth_providers)
+                    oauth: oauth::OAuth::new(oauth_providers),
                 };
 
                 loop {

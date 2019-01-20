@@ -6,7 +6,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use uuid::Uuid;
 
-use crate::db::{Object, schema, DbExecutor, Handler, Message};
+use crate::db::{schema, DbExecutor, Handler, Message, Object};
 use crate::providers::fitbit;
 use actix_web::{error, Error};
 
@@ -52,9 +52,14 @@ impl Object for Distance {
     fn insert(conn: &PgConnection, distance: &Distance) -> Result<Distance, diesel::result::Error> {
         use self::schema::distances::dsl::*;
 
-        diesel::insert_into(distances).values(distance).execute(conn)?;
+        diesel::insert_into(distances)
+            .values(distance)
+            .execute(conn)?;
 
-        Ok(Distance::find_one(conn, (&distance.user_id, &distance.time))?)
+        Ok(Distance::find_one(
+            conn,
+            (&distance.user_id, &distance.time),
+        )?)
     }
 
     // todo overload it
@@ -65,22 +70,26 @@ impl Object for Distance {
     ) -> Result<usize, diesel::result::Error> {
         use self::schema::distances::dsl::*;
 
-        diesel::insert_into(distances).values(the_distances).execute(conn)
+        diesel::insert_into(distances)
+            .values(the_distances)
+            .execute(conn)
     }
 }
 
 impl fitbit::IntradayMeasurement for Distance {
-    fn new(user_id: Uuid, time: DateTime<Utc>, measurement: fitbit::IntradayValue) -> Result<Self, Error> {
+    fn new(
+        user_id: Uuid,
+        time: DateTime<Utc>,
+        measurement: fitbit::IntradayValue,
+    ) -> Result<Self, Error> {
         match measurement {
-            fitbit::IntradayValue::Float(count) => {
-                Ok(Distance {
-                    user_id: user_id,
-                    count: count.value,
-                    source: "fitbit".to_string(),
-                    time: time,
-                })
-            },
-            _ => Err(error::ErrorInternalServerError("Wrong type!"))
+            fitbit::IntradayValue::Float(count) => Ok(Distance {
+                user_id: user_id,
+                count: count.value,
+                source: "fitbit".to_string(),
+                time: time,
+            }),
+            _ => Err(error::ErrorInternalServerError("Wrong type!")),
         }
     }
 

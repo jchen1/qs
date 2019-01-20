@@ -1,11 +1,10 @@
-use crate::db::{Token};
+use super::local_tz;
+use crate::db::Token;
 use actix_web::{error, Error};
 use chrono::{offset::TimeZone, DateTime, NaiveDate, NaiveDateTime, Utc};
-use chrono_tz::{Tz};
+use chrono_tz::Tz;
 use reqwest;
 use uuid::Uuid;
-use super::{local_tz};
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum IntradayMetric {
@@ -13,11 +12,15 @@ pub enum IntradayMetric {
     Calorie,
     Distance,
     Elevation,
-    Floor
+    Floor,
 }
 
 pub trait IntradayMeasurement: Sized {
-    fn new(user_id: uuid::Uuid, time: DateTime<Utc>, measurement: IntradayValue) -> Result<Self, Error>;
+    fn new(
+        user_id: uuid::Uuid,
+        time: DateTime<Utc>,
+        measurement: IntradayValue,
+    ) -> Result<Self, Error>;
     fn parse_response(r: IntradayResponse) -> Option<Vec<IntradayValue>>;
     fn name() -> &'static str;
 }
@@ -54,7 +57,7 @@ impl IntradayValue {
         match self {
             IntradayValue::Integral(v) => &v.time,
             IntradayValue::Float(v) => &v.time,
-            IntradayValue::Caloric(v) => &v.time
+            IntradayValue::Caloric(v) => &v.time,
         }
     }
 
@@ -93,14 +96,13 @@ fn to_measurement<T: IntradayMeasurement>(
     measurement: IntradayValue,
     user_id: Uuid,
 ) -> Result<T, Error> {
-    T::new(
-        user_id,
-        measurement.time_utc(day, local_tz)?,
-        measurement,
-    )
+    T::new(user_id, measurement.time_utc(day, local_tz)?, measurement)
 }
 
-pub fn measurement_for_day<T: IntradayMeasurement>(day: NaiveDate, token: &Token) -> Result<Vec<T>, Error> {
+pub fn measurement_for_day<T: IntradayMeasurement>(
+    day: NaiveDate,
+    token: &Token,
+) -> Result<Vec<T>, Error> {
     let client = reqwest::Client::new();
 
     let tz = local_tz(token)?;

@@ -1,8 +1,8 @@
 use crate::{
-    db::{self, Conn, Step, Token, Calorie, Distance, Elevation, Floor},
+    db::{self, Calorie, Conn, Distance, Elevation, Floor, Step, Token},
+    oauth::OAuth,
     providers::fitbit,
     queue::{Queue, QueueAction, QueueActionParams},
-    oauth::OAuth
 };
 use actix_web::{error, Error};
 use chrono::{Duration, NaiveDate};
@@ -11,7 +11,7 @@ use uuid::Uuid;
 pub struct WorkerContext {
     pub queue: Queue,
     pub conn: Conn,
-    pub oauth: OAuth
+    pub oauth: OAuth,
 }
 
 fn ingest_intraday_bulk(
@@ -45,8 +45,7 @@ fn ingest_intraday<T: fitbit::IntradayMeasurement + db::Object>(
     date: NaiveDate,
 ) -> Result<(), Error> {
     let measurement = fitbit::measurement_for_day::<T>(date, &token)?;
-    T::insert_many(&ctx.conn, &measurement)
-        .map_err(error::ErrorInternalServerError)?;
+    T::insert_many(&ctx.conn, &measurement).map_err(error::ErrorInternalServerError)?;
     Ok(())
 }
 
@@ -57,13 +56,21 @@ fn execute_one(
 ) -> Result<(), Error> {
     match action {
         QueueActionParams::IngestIntraday(metric, date) => {
-            let token = ctx.oauth.refresh_and_update("fitbit", &ctx.conn, user_id)
+            let token = ctx
+                .oauth
+                .refresh_and_update("fitbit", &ctx.conn, user_id)
                 .map_err(error::ErrorInternalServerError)?;
             match metric {
                 fitbit::IntradayMetric::Step => ingest_intraday::<Step>(ctx, token, date.clone()),
-                fitbit::IntradayMetric::Calorie => ingest_intraday::<Calorie>(ctx, token, date.clone()),
-                fitbit::IntradayMetric::Distance => ingest_intraday::<Distance>(ctx, token, date.clone()),
-                fitbit::IntradayMetric::Elevation => ingest_intraday::<Elevation>(ctx, token, date.clone()),
+                fitbit::IntradayMetric::Calorie => {
+                    ingest_intraday::<Calorie>(ctx, token, date.clone())
+                }
+                fitbit::IntradayMetric::Distance => {
+                    ingest_intraday::<Distance>(ctx, token, date.clone())
+                }
+                fitbit::IntradayMetric::Elevation => {
+                    ingest_intraday::<Elevation>(ctx, token, date.clone())
+                }
                 fitbit::IntradayMetric::Floor => ingest_intraday::<Floor>(ctx, token, date.clone()),
             }
         }

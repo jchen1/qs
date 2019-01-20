@@ -1,14 +1,14 @@
+use crate::providers::fitbit::IntradayMetric;
 use chrono::NaiveDate;
 pub use oppgave::Queue;
 use redis::Client;
 use uuid::Uuid;
-use crate::providers::fitbit::{IntradayMetric};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum QueueActionParams {
     IngestIntraday(IntradayMetric, NaiveDate),
     // startDate, num_days
-    BulkIngestIntraday(IntradayMetric, NaiveDate, u32)
+    BulkIngestIntraday(IntradayMetric, NaiveDate, u32),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -4,8 +4,8 @@ use actix_web::{
     error, http::header, AsyncResponder, FromRequest, FutureResponse, HttpRequest, HttpResponse,
     Path, Query,
 };
-use diesel::pg::PgConnection;
 use chrono::{DateTime, Utc};
+use diesel::pg::PgConnection;
 use futures::{
     future::{err, ok, result},
     Future,
@@ -26,7 +26,7 @@ pub struct OAuthToken {
     pub scopes: Vec<String>,
     pub user_id: String,
     pub email: Option<String>,
-    pub g_sub: Option<String>
+    pub g_sub: Option<String>,
 }
 
 impl From<db::Token> for OAuthToken {
@@ -40,7 +40,7 @@ impl From<db::Token> for OAuthToken {
             scopes: vec![],
             user_id: t.service_userid,
             email: None,
-            g_sub: None
+            g_sub: None,
         }
     }
 }
@@ -90,21 +90,31 @@ pub trait OAuthProvider {
     fn refresh_token(&self, token: OAuthToken) -> Result<OAuthToken, OAuthError>;
     fn name(&self) -> &'static str;
 
-    fn refresh_and_update(&self, conn: &PgConnection, user_id: &Uuid) -> Result<db::Token, OAuthError> {
-        let token = db::Token::find_by_uid_service(conn, user_id, self.name()).map_err(|_e| OAuthError::Error("couldn't find token".to_owned()))?;
+    fn refresh_and_update(
+        &self,
+        conn: &PgConnection,
+        user_id: &Uuid,
+    ) -> Result<db::Token, OAuthError> {
+        let token = db::Token::find_by_uid_service(conn, user_id, self.name())
+            .map_err(|_e| OAuthError::Error("couldn't find token".to_owned()))?;
         let id = token.id.clone();
 
         if token.access_token_expiry < Utc::now() {
             let refreshed_token = self.refresh_token(OAuthToken::from(token))?;
-            db::Token::update(conn, id, db::UpdateToken {
-                access_token: Some(&refreshed_token.access_token),
-                access_token_expiry: Some(&refreshed_token.expiration),
-                service_userid: Some(&refreshed_token.user_id),
-                refresh_token: match refreshed_token.refresh_token.as_str() {
-                    "" => None,
-                    t => Some(&t)
-                }
-            }).map_err(|_e| OAuthError::Error("couldn't update token".to_owned()))
+            db::Token::update(
+                conn,
+                id,
+                db::UpdateToken {
+                    access_token: Some(&refreshed_token.access_token),
+                    access_token_expiry: Some(&refreshed_token.expiration),
+                    service_userid: Some(&refreshed_token.user_id),
+                    refresh_token: match refreshed_token.refresh_token.as_str() {
+                        "" => None,
+                        t => Some(&t),
+                    },
+                },
+            )
+            .map_err(|_e| OAuthError::Error("couldn't update token".to_owned()))
         } else {
             Ok(token)
         }
@@ -146,7 +156,12 @@ impl OAuth {
         provider.refresh_token(token)
     }
 
-    pub fn refresh_and_update(&self, service: &str, conn: &PgConnection, user_id: &Uuid)-> Result<db::Token, OAuthError> {
+    pub fn refresh_and_update(
+        &self,
+        service: &str,
+        conn: &PgConnection,
+        user_id: &Uuid,
+    ) -> Result<db::Token, OAuthError> {
         let provider = self
             .providers
             .get(service)

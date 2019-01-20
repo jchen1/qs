@@ -75,11 +75,5 @@ joinable!(steps -> users (user_id));
 joinable!(tokens -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
-    calories,
-    distances,
-    elevations,
-    floors,
-    steps,
-    tokens,
-    users,
+    calories, distances, elevations, floors, steps, tokens, users,
 );

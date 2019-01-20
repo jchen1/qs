@@ -1,7 +1,7 @@
+use crate::db::Token;
 use crate::oauth::{OAuthError, OAuthProvider, OAuthToken};
 use crate::utils::urlencode;
-use crate::db::{Token};
-use actix_web::{Error};
+use actix_web::Error;
 use chrono::{Duration, Utc};
 use chrono_tz::{Tz, US::Pacific};
 use reqwest;
@@ -45,7 +45,7 @@ impl From<FitbitCallbackResponse> for OAuthToken {
             scopes: fcr.scope.split(" ").map(String::from).collect(),
             email: None,
             expiration: Utc::now() + Duration::seconds(fcr.expires_in as i64),
-            g_sub: None
+            g_sub: None,
         }
     }
 }
