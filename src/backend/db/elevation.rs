@@ -6,7 +6,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use uuid::Uuid;
 
-use crate::db::{schema, DbExecutor, Handler, Message};
+use crate::db::{Object, schema, DbExecutor, Handler, Message};
 use crate::providers::fitbit;
 use actix_web::{error, Error};
 
@@ -46,8 +46,10 @@ impl Elevation {
             .order(time.desc())
             .load::<Elevation>(conn)?)
     }
+}
 
-    pub fn insert(conn: &PgConnection, elevation: &Elevation) -> Result<Elevation, diesel::result::Error> {
+impl Object for Elevation {
+    fn insert(conn: &PgConnection, elevation: &Elevation) -> Result<Elevation, diesel::result::Error> {
         use self::schema::elevations::dsl::*;
 
         diesel::insert_into(elevations).values(elevation).execute(conn)?;
@@ -57,7 +59,7 @@ impl Elevation {
 
     // todo overload it
 
-    pub fn insert_many(
+    fn insert_many(
         conn: &PgConnection,
         the_elevations: &Vec<Elevation>,
     ) -> Result<usize, diesel::result::Error> {

@@ -6,7 +6,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use uuid::Uuid;
 
-use crate::db::{schema, DbExecutor, Handler, Message};
+use crate::db::{Object, schema, DbExecutor, Handler, Message};
 use crate::providers::fitbit;
 use actix_web::{error, Error};
 
@@ -20,15 +20,6 @@ pub struct Step {
 }
 
 impl Step {
-    pub fn find_one(
-        conn: &PgConnection,
-        (user_id, time): (&Uuid, &DateTime<Utc>),
-    ) -> Result<Step, diesel::result::Error> {
-        Ok(steps::table
-            .find((user_id, time))
-            .get_result::<Step>(conn)?)
-    }
-
     pub fn for_period(
         conn: &PgConnection,
         the_user_id: &Uuid,
@@ -47,17 +38,28 @@ impl Step {
             .load::<Step>(conn)?)
     }
 
-    pub fn insert(conn: &PgConnection, step: &Step) -> Result<Step, diesel::result::Error> {
+    pub fn find_one(
+        conn: &PgConnection,
+        (user_id, time): &(Uuid, DateTime<Utc>),
+    ) -> Result<Step, diesel::result::Error> {
+        Ok(steps::table
+            .find((user_id, time))
+            .get_result::<Step>(conn)?)
+    }
+}
+
+impl Object for Step {
+    fn insert(conn: &PgConnection, step: &Step) -> Result<Step, diesel::result::Error> {
         use self::schema::steps::dsl::*;
 
         diesel::insert_into(steps).values(step).execute(conn)?;
 
-        Ok(Step::find_one(conn, (&step.user_id, &step.time))?)
+        Ok(Step::find_one(conn, &(step.user_id, step.time))?)
     }
 
     // todo overload it
 
-    pub fn insert_many(
+    fn insert_many(
         conn: &PgConnection,
         the_steps: &Vec<Step>,
     ) -> Result<usize, diesel::result::Error> {

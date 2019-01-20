@@ -6,6 +6,16 @@ use reqwest;
 use uuid::Uuid;
 use super::{local_tz};
 
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum IntradayMetric {
+    Step,
+    Calorie,
+    Distance,
+    Elevation,
+    Floor
+}
+
 pub trait IntradayMeasurement: Sized {
     fn new(user_id: uuid::Uuid, time: DateTime<Utc>, measurement: IntradayValue) -> Result<Self, Error>;
     fn parse_response(r: IntradayResponse) -> Option<Vec<IntradayValue>>;

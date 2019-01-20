@@ -6,7 +6,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use uuid::Uuid;
 
-use crate::db::{schema, DbExecutor, Handler, Message};
+use crate::db::{Object, schema, DbExecutor, Handler, Message};
 use crate::providers::fitbit;
 use actix_web::{error, Error};
 
@@ -48,8 +48,10 @@ impl Calorie {
             .order(time.desc())
             .load::<Calorie>(conn)?)
     }
+}
 
-    pub fn insert(conn: &PgConnection, calorie: &Calorie) -> Result<Calorie, diesel::result::Error> {
+impl Object for Calorie {
+    fn insert(conn: &PgConnection, calorie: &Calorie) -> Result<Calorie, diesel::result::Error> {
         use self::schema::calories::dsl::*;
 
         diesel::insert_into(calories).values(calorie).execute(conn)?;
@@ -59,7 +61,7 @@ impl Calorie {
 
     // todo overload it
 
-    pub fn insert_many(
+    fn insert_many(
         conn: &PgConnection,
         the_calories: &Vec<Calorie>,
     ) -> Result<usize, diesel::result::Error> {

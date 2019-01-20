@@ -6,7 +6,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use uuid::Uuid;
 
-use crate::db::{schema, DbExecutor, Handler, Message};
+use crate::db::{Object, schema, DbExecutor, Handler, Message};
 use crate::providers::fitbit;
 use actix_web::{error, Error};
 
@@ -46,8 +46,10 @@ impl Distance {
             .order(time.desc())
             .load::<Distance>(conn)?)
     }
+}
 
-    pub fn insert(conn: &PgConnection, distance: &Distance) -> Result<Distance, diesel::result::Error> {
+impl Object for Distance {
+    fn insert(conn: &PgConnection, distance: &Distance) -> Result<Distance, diesel::result::Error> {
         use self::schema::distances::dsl::*;
 
         diesel::insert_into(distances).values(distance).execute(conn)?;
@@ -57,7 +59,7 @@ impl Distance {
 
     // todo overload it
 
-    pub fn insert_many(
+    fn insert_many(
         conn: &PgConnection,
         the_distances: &Vec<Distance>,
     ) -> Result<usize, diesel::result::Error> {

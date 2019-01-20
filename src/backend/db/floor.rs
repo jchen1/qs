@@ -6,7 +6,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use uuid::Uuid;
 
-use crate::db::{schema, DbExecutor, Handler, Message};
+use crate::db::{Object, schema, DbExecutor, Handler, Message};
 use crate::providers::fitbit;
 use actix_web::{error, Error};
 
@@ -46,8 +46,10 @@ impl Floor {
             .order(time.desc())
             .load::<Floor>(conn)?)
     }
+}
 
-    pub fn insert(conn: &PgConnection, floor: &Floor) -> Result<Floor, diesel::result::Error> {
+impl Object for Floor {
+    fn insert(conn: &PgConnection, floor: &Floor) -> Result<Floor, diesel::result::Error> {
         use self::schema::floors::dsl::*;
 
         diesel::insert_into(floors).values(floor).execute(conn)?;
@@ -57,7 +59,7 @@ impl Floor {
 
     // todo overload it
 
-    pub fn insert_many(
+    fn insert_many(
         conn: &PgConnection,
         the_floors: &Vec<Floor>,
     ) -> Result<usize, diesel::result::Error> {

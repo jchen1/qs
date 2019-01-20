@@ -1,5 +1,5 @@
 use crate::{
-    db::{Conn, Step, Token},
+    db::{self, Conn, Step, Token, Calorie, Distance, Elevation, Floor},
     providers::fitbit,
     queue::{Queue, QueueAction, QueueActionParams},
 };
@@ -12,10 +12,10 @@ pub struct WorkerContext {
     pub conn: Conn,
 }
 
-fn ingest_steps_bulk(
+fn ingest_intraday_bulk(
     ctx: &WorkerContext,
     user_id: &Uuid,
-    service: &str,
+    metric: &fitbit::IntradayMetric,
     start_date: &NaiveDate,
     num_days: &u32,
 ) -> Result<(), Error> {
@@ -23,8 +23,8 @@ fn ingest_steps_bulk(
         let action = QueueAction {
             id: Uuid::new_v4(),
             user_id: user_id.clone(),
-            params: QueueActionParams::IngestSteps(
-                service.to_string(),
+            params: QueueActionParams::IngestIntraday(
+                metric.clone(),
                 *start_date + Duration::days(i as i64),
             ),
         };
@@ -37,18 +37,15 @@ fn ingest_steps_bulk(
     Ok(())
 }
 
-fn ingest_steps(
+fn ingest_intraday<T: fitbit::IntradayMeasurement + db::Object>(
     ctx: &WorkerContext,
-    user_id: &Uuid,
-    service: String,
+    token: Token,
     date: NaiveDate,
 ) -> Result<(), Error> {
-    let token = Token::find_by_uid_service(&ctx.conn, user_id, &service)
+    let measurement = fitbit::measurement_for_day::<T>(date, &token)?;
+    T::insert_many(&ctx.conn, &measurement)
         .map_err(error::ErrorInternalServerError)?;
-    let steps_for_day = fitbit::measurement_for_day::<Step>(date, &token)?;
-    Step::insert_many(&ctx.conn, &steps_for_day)
-        .map_err(error::ErrorInternalServerError)
-        .map(|_| ())
+    Ok(())
 }
 
 fn execute_one(
@@ -57,11 +54,19 @@ fn execute_one(
     action: &QueueActionParams,
 ) -> Result<(), Error> {
     match action {
-        QueueActionParams::IngestSteps(service, date) => {
-            ingest_steps(ctx, user_id, service.to_string(), date.clone())
+        QueueActionParams::IngestIntraday(metric, date) => {
+            let token = Token::find_by_uid_service(&ctx.conn, user_id, "fitbit")
+                .map_err(error::ErrorInternalServerError)?;
+            match metric {
+                fitbit::IntradayMetric::Step => ingest_intraday::<Step>(ctx, token, date.clone()),
+                fitbit::IntradayMetric::Calorie => ingest_intraday::<Calorie>(ctx, token, date.clone()),
+                fitbit::IntradayMetric::Distance => ingest_intraday::<Distance>(ctx, token, date.clone()),
+                fitbit::IntradayMetric::Elevation => ingest_intraday::<Elevation>(ctx, token, date.clone()),
+                fitbit::IntradayMetric::Floor => ingest_intraday::<Floor>(ctx, token, date.clone()),
+            }
         }
-        QueueActionParams::BulkIngestSteps(service, start_date, num_days) => {
-            ingest_steps_bulk(ctx, user_id, service, start_date, num_days)
+        QueueActionParams::BulkIngestIntraday(metric, start_date, num_days) => {
+            ingest_intraday_bulk(ctx, user_id, metric, start_date, num_days)
         }
     }
 }

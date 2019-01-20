@@ -25,6 +25,11 @@ pub mod schema;
 
 pub type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
+pub trait Object: Sized {
+    fn insert(conn: &PgConnection, obj: &Self) -> Result<Self, diesel::result::Error>;
+    fn insert_many(conn: &PgConnection, objs: &Vec<Self>) -> Result<usize, diesel::result::Error>;
+}
+
 /// This is db executor actor. We are going to run 3 of them in parallel.
 pub struct DbExecutor(pub Pool);
 
