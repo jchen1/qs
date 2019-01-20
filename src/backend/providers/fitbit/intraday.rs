@@ -5,6 +5,7 @@ use chrono::{offset::TimeZone, DateTime, NaiveDate, NaiveDateTime, Utc};
 use chrono_tz::Tz;
 use reqwest;
 use uuid::Uuid;
+use std::fmt::Debug;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum IntradayMetric {
@@ -15,7 +16,7 @@ pub enum IntradayMetric {
     Floor,
 }
 
-pub trait IntradayMeasurement: Sized {
+pub trait IntradayMeasurement: Sized + Debug {
     fn new(
         user_id: uuid::Uuid,
         time: DateTime<Utc>,

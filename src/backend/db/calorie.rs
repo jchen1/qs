@@ -95,7 +95,7 @@ impl fitbit::IntradayMeasurement for Calorie {
     }
 
     fn name() -> &'static str {
-        "calorie"
+        "calories"
     }
 
     fn parse_response(r: fitbit::IntradayResponse) -> Option<Vec<fitbit::IntradayValue>> {

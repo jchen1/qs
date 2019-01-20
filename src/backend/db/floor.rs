@@ -87,7 +87,7 @@ impl fitbit::IntradayMeasurement for Floor {
     }
 
     fn name() -> &'static str {
-        "floor"
+        "floors"
     }
 
     fn parse_response(r: fitbit::IntradayResponse) -> Option<Vec<fitbit::IntradayValue>> {

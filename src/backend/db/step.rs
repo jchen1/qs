@@ -87,7 +87,7 @@ impl fitbit::IntradayMeasurement for Step {
     }
 
     fn name() -> &'static str {
-        "step"
+        "steps"
     }
 
     fn parse_response(r: fitbit::IntradayResponse) -> Option<Vec<fitbit::IntradayValue>> {
