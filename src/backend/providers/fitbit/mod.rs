@@ -51,6 +51,10 @@ impl From<FitbitCallbackResponse> for OAuthToken {
 }
 
 impl OAuthProvider for Fitbit {
+    fn name(&self) -> &'static str {
+        "fitbit"
+    }
+
     fn oauth_redirect_url(&self) -> Result<String, OAuthError> {
         let scopes = [
             "activity",

@@ -100,23 +100,6 @@ graphql_object!(MutationRoot: Context |&self| {
         })
     }
 
-    // field refresh_token(&executor, token_id: Uuid) -> FieldResult<Token> {
-    //     let conn = &executor.context().conn;
-
-    //     let token = db::Token::find_one(conn, token_id)?;
-    //     let new_token = oauth::refresh_token(OAuthToken::from(token))?;
-    //     let updated = db::Token::update(conn, token_id, db::UpdateToken {
-    //         access_token: Some(&new_token.access_token),
-    //         access_token_expiry: Some(&new_token.expiration),
-    //         service_userid: Some(&new_token.user_id),
-    //         refresh_token: match new_token.refresh_token.as_str() {
-    //             "" => None,
-    //             e => Some(&e)
-    //         }
-    //     })?;
-    //     Ok(Token::from(&updated))
-    // }
-
     field ingest_data(&executor, service: String, measurement: String, date: NaiveDate) -> FieldResult<bool> {
         let producer = &executor.context().producer;
         let user_id = executor.context().user.clone().ok_or("Not logged in".to_owned())?.id;

@@ -83,6 +83,10 @@ fn get_discovery_doc() -> Result<EndpointInfo, OAuthError> {
 }
 
 impl OAuthProvider for Google {
+    fn name(&self) -> &'static str {
+        "google"
+    }
+
     fn oauth_redirect_url(&self) -> Result<String, OAuthError> {
         let scopes = ["openid", "email"].join(" ");
         // todo a real state/session cookie

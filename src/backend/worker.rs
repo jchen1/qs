@@ -2,6 +2,7 @@ use crate::{
     db::{self, Conn, Step, Token, Calorie, Distance, Elevation, Floor},
     providers::fitbit,
     queue::{Queue, QueueAction, QueueActionParams},
+    oauth::OAuth
 };
 use actix_web::{error, Error};
 use chrono::{Duration, NaiveDate};
@@ -10,6 +11,7 @@ use uuid::Uuid;
 pub struct WorkerContext {
     pub queue: Queue,
     pub conn: Conn,
+    pub oauth: OAuth
 }
 
 fn ingest_intraday_bulk(
@@ -55,7 +57,7 @@ fn execute_one(
 ) -> Result<(), Error> {
     match action {
         QueueActionParams::IngestIntraday(metric, date) => {
-            let token = Token::find_by_uid_service(&ctx.conn, user_id, "fitbit")
+            let token = ctx.oauth.refresh_and_update("fitbit", &ctx.conn, user_id)
                 .map_err(error::ErrorInternalServerError)?;
             match metric {
                 fitbit::IntradayMetric::Step => ingest_intraday::<Step>(ctx, token, date.clone()),
