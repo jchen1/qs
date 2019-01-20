@@ -100,17 +100,12 @@ graphql_object!(MutationRoot: Context |&self| {
         })
     }
 
-    field ingest_data(&executor, service: String, measurement: String, date: NaiveDate) -> FieldResult<bool> {
+    field ingest_data(&executor, service: String, measurement: IntradayMetric, date: NaiveDate) -> FieldResult<bool> {
         let producer = &executor.context().producer;
         let user_id = executor.context().user.clone().ok_or("Not logged in".to_owned())?.id;
 
-        let measurement = match (service.as_str(), measurement.as_str()) {
-            ("fitbit", "steps") => Ok(IntradayMetric::Step),
-            ("fitbit", "calories") => Ok(IntradayMetric::Calorie),
-            ("fitbit", "distances") => Ok(IntradayMetric::Distance),
-            ("fitbit", "elevations") => Ok(IntradayMetric::Elevation),
-            ("fitbit", "floors") => Ok(IntradayMetric::Floor),
-            ("fitbit", _) => Err("unsupported metric".to_owned()),
+        match service.as_str() {
+            "fitbit" => Ok(()),
             _ => Err("only fitbit is supported".to_owned())
         }?;
 

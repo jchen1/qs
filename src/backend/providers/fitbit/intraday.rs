@@ -7,7 +7,7 @@ use reqwest;
 use uuid::Uuid;
 use std::fmt::Debug;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(GraphQLEnum, Serialize, Deserialize, Debug, Clone)]
 pub enum IntradayMetric {
     Step,
     Calorie,
