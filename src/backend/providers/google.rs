@@ -58,8 +58,8 @@ impl From<GoogleCallbackResponse> for OAuthToken {
             user_id: claims.sub.clone(),
             g_sub: Some(claims.sub.clone()),
             email: Some(claims.email),
-            scopes: gcr.scope.split(" ").map(String::from).collect(),
-            expiration: Utc::now() + Duration::seconds(gcr.expires_in as i64),
+            scopes: gcr.scope.split(' ').map(String::from).collect(),
+            expiration: Utc::now() + Duration::seconds(i64::from(gcr.expires_in)),
         }
     }
 }
@@ -79,7 +79,7 @@ fn get_discovery_doc() -> Result<EndpointInfo, OAuthError> {
         .get("https://accounts.google.com/.well-known/openid-configuration")
         .send()?
         .json()?;
-    return Ok(res);
+    Ok(res)
 }
 
 impl OAuthProvider for Google {

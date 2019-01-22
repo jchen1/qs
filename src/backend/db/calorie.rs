@@ -65,7 +65,7 @@ impl Object for Calorie {
 
     fn insert_many(
         conn: &PgConnection,
-        the_calories: &Vec<Calorie>,
+        the_calories: &[Calorie],
     ) -> Result<usize, diesel::result::Error> {
         use self::schema::calories::dsl::*;
 
@@ -83,10 +83,10 @@ impl fitbit::IntradayMeasurement for Calorie {
     ) -> Result<Self, Error> {
         match measurement {
             fitbit::IntradayValue::Caloric(count) => Ok(Calorie {
-                user_id: user_id,
+                user_id,
                 count: count.value,
                 source: "fitbit".to_string(),
-                time: time,
+                time,
                 level: count.level,
                 mets: count.mets,
             }),
@@ -103,7 +103,7 @@ impl fitbit::IntradayMeasurement for Calorie {
             Some(
                 a.dataset
                     .into_iter()
-                    .map(|v| fitbit::IntradayValue::Caloric(v))
+                    .map(fitbit::IntradayValue::Caloric)
                     .collect(),
             )
         })

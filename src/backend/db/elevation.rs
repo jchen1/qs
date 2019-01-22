@@ -69,7 +69,7 @@ impl Object for Elevation {
 
     fn insert_many(
         conn: &PgConnection,
-        the_elevations: &Vec<Elevation>,
+        the_elevations: &[Elevation],
     ) -> Result<usize, diesel::result::Error> {
         use self::schema::elevations::dsl::*;
 
@@ -87,10 +87,10 @@ impl fitbit::IntradayMeasurement for Elevation {
     ) -> Result<Self, Error> {
         match measurement {
             fitbit::IntradayValue::Float(count) => Ok(Elevation {
-                user_id: user_id,
+                user_id,
                 count: count.value,
                 source: "fitbit".to_string(),
-                time: time,
+                time,
             }),
             _ => Err(error::ErrorInternalServerError("Wrong type!")),
         }
@@ -105,7 +105,7 @@ impl fitbit::IntradayMeasurement for Elevation {
             Some(
                 a.dataset
                     .into_iter()
-                    .map(|v| fitbit::IntradayValue::Float(v))
+                    .map(fitbit::IntradayValue::Float)
                     .collect(),
             )
         })

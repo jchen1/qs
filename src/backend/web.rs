@@ -21,7 +21,7 @@ use crate::providers::{fitbit::Fitbit, google::Google};
 use actix::prelude::*;
 use actix_web::middleware::identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::middleware::session::{CookieSessionBackend, SessionStorage};
-use actix_web::{fs::NamedFile, http::Method, middleware, server, App, Error, State};
+use actix_web::{http::Method, middleware, server, App};
 use listenfd::ListenFd;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -34,10 +34,6 @@ pub struct AppState {
     oauth: Addr<oauth::OAuthExecutor>,
 }
 
-fn index(_state: State<AppState>) -> Result<NamedFile, Error> {
-    Ok(NamedFile::open("src/index.html")?)
-}
-
 fn main() {
     dotenv::dotenv().ok();
     std::env::set_var("RUST_LOG", "info");
@@ -45,18 +41,18 @@ fn main() {
 
     // env vars with dev defaults
     let db_url = dotenv::var("DATABASE_URL")
-        .unwrap_or("postgres://postgres:password@localhost/dev_db".to_string());
-    let redis_url = dotenv::var("REDIS_URL").unwrap_or("redis://localhost".to_string());
-    let cookie_key = dotenv::var("JWT_ISSUE").unwrap_or(" ".repeat(32).to_string());
-    let queue_name = dotenv::var("WORKER_QUEUE_NAME").unwrap_or("default".to_string());
-    let env = dotenv::var("ENVIORNMENT").unwrap_or("dev".to_string());
+        .unwrap_or_else(|_| "postgres://postgres:password@localhost/dev_db".to_string());
+    let redis_url = dotenv::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost".to_string());
+    let cookie_key = dotenv::var("JWT_ISSUE").unwrap_or_else(|_| " ".repeat(32).to_string());
+    let queue_name = dotenv::var("WORKER_QUEUE_NAME").unwrap_or_else(|_| "default".to_string());
+    let env = dotenv::var("ENVIORNMENT").unwrap_or_else(|_| "dev".to_string());
     let num_workers: u32 = dotenv::var("NUM_WORKERS")
-        .unwrap_or("1".to_string())
+        .unwrap_or_else(|_| "1".to_string())
         .parse()
         .unwrap();
 
-    let fitbit_id = dotenv::var("FITBIT_CLIENT_ID").unwrap_or("22DFW9".to_string());
-    let google_id = dotenv::var("GOOGLE_CLIENT_ID").unwrap_or(
+    let fitbit_id = dotenv::var("FITBIT_CLIENT_ID").unwrap_or_else(|_| "22DFW9".to_string());
+    let google_id = dotenv::var("GOOGLE_CLIENT_ID").unwrap_or_else(|_|
         "820579007787-k29hdg84c8170kp4k60jdgj2soncluau.apps.googleusercontent.com".to_string(),
     );
 
@@ -83,7 +79,7 @@ fn main() {
         graphql::GraphQLExecutor::new(
             schema.clone(),
             graphql_pool.clone(),
-            queue::init_queue(redis_url.clone(), queue_name.clone()),
+            queue::init_queue(&redis_url, queue_name.clone()),
         )
     });
 
@@ -125,7 +121,6 @@ fn main() {
                 .name("auth")
                 .secure(false),
         ))
-        .resource("/", |r| r.method(Method::GET).with(index))
         .resource("/oauth/{service}/start", |r| {
             r.method(Method::GET).f(oauth::start_oauth)
         })
@@ -174,9 +169,9 @@ fn main() {
                         &google_secret_clone.clone(),
                     )),
                 );
-                let queue = queue::init_queue(redis_url.clone(), queue_name.clone());
+                let queue = queue::init_queue(&redis_url, queue_name.clone());
                 let ctx = worker::WorkerContext {
-                    queue: queue,
+                    queue,
                     conn: db::Conn(conn),
                     oauth: oauth::OAuth::new(oauth_providers),
                 };

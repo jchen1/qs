@@ -24,19 +24,19 @@ pub struct NewUser<'a> {
 }
 
 impl User {
-    pub fn insert(conn: &PgConnection, user: NewUser) -> Result<User, diesel::result::Error> {
+    pub fn insert(conn: &PgConnection, user: &NewUser) -> Result<User, diesel::result::Error> {
         use self::schema::users::dsl::*;
 
-        diesel::insert_into(users).values(&user).execute(conn)?;
+        diesel::insert_into(users).values(user).execute(conn)?;
 
         Ok(User::find_one(conn, &user.id)?)
     }
 
-    pub fn upsert(conn: &PgConnection, user: NewUser) -> Result<User, diesel::result::Error> {
+    pub fn upsert(conn: &PgConnection, user: &NewUser) -> Result<User, diesel::result::Error> {
         use self::schema::users::dsl::*;
 
         diesel::insert_into(users)
-            .values(&user)
+            .values(user)
             .on_conflict_do_nothing()
             .execute(conn)?;
 
@@ -90,7 +90,7 @@ impl Handler<CreateUser> for DbExecutor {
 
         let conn: &PgConnection = &self.0.get().unwrap();
 
-        Ok(User::insert(conn, new_user)
+        Ok(User::insert(conn, &new_user)
             .map_err(|_| error::ErrorInternalServerError("Error inserting user!"))?)
     }
 }
@@ -153,7 +153,7 @@ impl Handler<UpsertUser> for DbExecutor {
             g_sub: &msg.g_sub,
         };
 
-        Ok(User::upsert(conn, new_user)
+        Ok(User::upsert(conn, &new_user)
             .map_err(|_| error::ErrorInternalServerError("Error upserting user"))?)
     }
 }

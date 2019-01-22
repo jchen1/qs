@@ -68,7 +68,7 @@ impl IntradayValue {
             "%m-%d-%YT%H:%M:%S",
         )
         .map_err(error::ErrorInternalServerError)?;
-        let local_dt = local_tz.from_local_datetime(&naive_dt).earliest().ok_or(
+        let local_dt = local_tz.from_local_datetime(&naive_dt).earliest().ok_or_else(||
             error::ErrorInternalServerError("error converting timestamp"),
         )?;
 
@@ -122,7 +122,7 @@ pub fn measurement_for_day<T: IntradayMeasurement>(
     let resp: IntradayResponse = request.json().map_err(error::ErrorInternalServerError)?;
 
     let measurements: Vec<T> = T::parse_response(resp)
-        .unwrap_or(vec![])
+        .unwrap_or_else(|| vec![])
         .into_iter()
         .map(|s| to_measurement(day, tz, s, token.user_id))
         .filter(|s| s.is_ok())

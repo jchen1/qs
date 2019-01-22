@@ -97,14 +97,14 @@ pub trait OAuthProvider {
     ) -> Result<db::Token, OAuthError> {
         let token = db::Token::find_by_uid_service(conn, user_id, self.name())
             .map_err(|_e| OAuthError::Error("couldn't find token".to_owned()))?;
-        let id = token.id.clone();
+        let id = token.id;
 
         if token.access_token_expiry < Utc::now() {
             let refreshed_token = self.refresh_token(OAuthToken::from(token))?;
             db::Token::update(
                 conn,
                 id,
-                db::UpdateToken {
+                &db::UpdateToken {
                     access_token: Some(&refreshed_token.access_token),
                     access_token_expiry: Some(&refreshed_token.expiration),
                     service_userid: Some(&refreshed_token.user_id),
@@ -128,7 +128,7 @@ pub struct OAuth {
 impl OAuth {
     pub fn new(providers: HashMap<String, Box<OAuthProvider + Send + Sync>>) -> Self {
         OAuth {
-            providers: providers,
+            providers,
         }
     }
 
@@ -136,7 +136,7 @@ impl OAuth {
         let provider = self
             .providers
             .get(&service.to_string())
-            .ok_or(OAuthError::Error("Service not implemented".to_string()))?;
+            .ok_or_else(|| OAuthError::Error("Service not implemented".to_string()))?;
         provider.oauth_redirect_url()
     }
 
@@ -144,7 +144,7 @@ impl OAuth {
         let provider = self
             .providers
             .get(&service.to_string())
-            .ok_or(OAuthError::Error("Service not implemented".to_string()))?;
+            .ok_or_else(|| OAuthError::Error("Service not implemented".to_string()))?;
         provider.token_from_code(code)
     }
 
@@ -152,7 +152,7 @@ impl OAuth {
         let provider = self
             .providers
             .get(&token.service)
-            .ok_or(OAuthError::Error("Service not implemented".to_string()))?;
+            .ok_or_else(|| OAuthError::Error("Service not implemented".to_string()))?;
         provider.refresh_token(token)
     }
 
@@ -165,7 +165,7 @@ impl OAuth {
         let provider = self
             .providers
             .get(service)
-            .ok_or(OAuthError::Error("Service not implemented".to_string()))?;
+            .ok_or_else(|| OAuthError::Error("Service not implemented".to_string()))?;
         provider.refresh_and_update(conn, user_id)
     }
 }
@@ -226,7 +226,7 @@ impl Handler<OAuthRefresh> for OAuthExecutor {
 
 pub fn start_oauth(req: &HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
     let service =
-        Path::<String>::extract(&req).unwrap_or(Path::<String>::from("not-a-service".to_owned()));
+        Path::<String>::extract(&req).unwrap_or_else(|_| Path::<String>::from("not-a-service".to_owned()));
     let oauth = &req.state().oauth;
 
     oauth
@@ -257,7 +257,7 @@ fn try_login(
                 None => unimplemented!(),
             }
             .clone(),
-            g_sub: g_sub,
+            g_sub,
         })
         .from_err()
         .and_then(|res| match res {
@@ -284,11 +284,11 @@ pub fn oauth_callback(
     let query = Query::<HashMap<String, String>>::extract(&req)?;
     let code = query
         .get("code")
-        .ok_or(error::ErrorBadRequest("Bad request"))?
+        .ok_or_else(|| error::ErrorBadRequest("Bad request"))?
         .to_string();
     let params = OAuthCallback {
-        service: service,
-        code: code,
+        service,
+        code,
     };
 
     Ok(oauth

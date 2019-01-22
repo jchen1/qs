@@ -66,10 +66,10 @@ impl Token {
     pub fn update(
         conn: &PgConnection,
         id: Uuid,
-        update: UpdateToken,
+        update: &UpdateToken,
     ) -> Result<Token, diesel::result::Error> {
         let _ = diesel::update(tokens::table.find(id))
-            .set(&update)
+            .set(update)
             .execute(conn)?;
         Token::find_one(conn, id)
     }

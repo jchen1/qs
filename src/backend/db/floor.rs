@@ -61,7 +61,7 @@ impl Object for Floor {
 
     fn insert_many(
         conn: &PgConnection,
-        the_floors: &Vec<Floor>,
+        the_floors: &[Floor],
     ) -> Result<usize, diesel::result::Error> {
         use self::schema::floors::dsl::*;
 
@@ -77,10 +77,10 @@ impl fitbit::IntradayMeasurement for Floor {
     ) -> Result<Self, Error> {
         match measurement {
             fitbit::IntradayValue::Integral(count) => Ok(Floor {
-                user_id: user_id,
+                user_id,
                 count: count.value,
                 source: "fitbit".to_string(),
-                time: time,
+                time,
             }),
             _ => Err(error::ErrorInternalServerError("Wrong type!")),
         }
@@ -95,7 +95,7 @@ impl fitbit::IntradayMeasurement for Floor {
             Some(
                 a.dataset
                     .into_iter()
-                    .map(|v| fitbit::IntradayValue::Integral(v))
+                    .map(fitbit::IntradayValue::Integral)
                     .collect(),
             )
         })

@@ -18,7 +18,7 @@ pub struct QueueAction {
     pub params: QueueActionParams,
 }
 
-pub fn init_queue(redis_url: String, queue_name: String) -> Queue {
-    let client = Client::open(redis_url.as_str()).expect("Failed to connect to redis");
+pub fn init_queue(redis_url: &str, queue_name: String) -> Queue {
+    let client = Client::open(redis_url).expect("Failed to connect to redis");
     Queue::new(queue_name, client)
 }

@@ -31,9 +31,9 @@ impl JuniperContext for Context {}
 impl Context {
     pub fn new(conn: db::Conn, user: Option<User>, producer: Queue) -> Context {
         Context {
-            conn: conn,
-            user: user,
-            producer: producer,
+            conn,
+            user,
+            producer,
         }
     }
 }
@@ -55,9 +55,9 @@ impl GraphQLExecutor {
         producer: Queue,
     ) -> GraphQLExecutor {
         GraphQLExecutor {
-            schema: schema,
-            pool: pool,
-            producer: producer,
+            schema,
+            pool,
+            producer,
         }
     }
 }
@@ -97,8 +97,8 @@ pub fn graphql(req: &HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
         .and_then(move |req: GraphQLRequest| {
             executor
                 .send(GraphQLData {
-                    req: req,
-                    user_id: user_id,
+                    req,
+                    user_id,
                 })
                 .from_err()
                 .and_then(|res| match res {

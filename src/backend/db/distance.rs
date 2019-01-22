@@ -66,7 +66,7 @@ impl Object for Distance {
 
     fn insert_many(
         conn: &PgConnection,
-        the_distances: &Vec<Distance>,
+        the_distances: &[Distance],
     ) -> Result<usize, diesel::result::Error> {
         use self::schema::distances::dsl::*;
 
@@ -84,10 +84,10 @@ impl fitbit::IntradayMeasurement for Distance {
     ) -> Result<Self, Error> {
         match measurement {
             fitbit::IntradayValue::Float(count) => Ok(Distance {
-                user_id: user_id,
+                user_id,
                 count: count.value,
                 source: "fitbit".to_string(),
-                time: time,
+                time,
             }),
             _ => Err(error::ErrorInternalServerError("Wrong type!")),
         }
@@ -102,7 +102,7 @@ impl fitbit::IntradayMeasurement for Distance {
             Some(
                 a.dataset
                     .into_iter()
-                    .map(|v| fitbit::IntradayValue::Float(v))
+                    .map(fitbit::IntradayValue::Float)
                     .collect(),
             )
         })

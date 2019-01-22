@@ -18,16 +18,16 @@ fn ingest_intraday_bulk(
     ctx: &WorkerContext,
     user_id: &Uuid,
     metric: &fitbit::IntradayMetric,
-    start_date: &NaiveDate,
-    num_days: &u32,
+    start_date: NaiveDate,
+    num_days: u32,
 ) -> Result<(), Error> {
-    for i in 0..*num_days {
+    for i in 0..num_days {
         let action = QueueAction {
             id: Uuid::new_v4(),
-            user_id: user_id.clone(),
+            user_id: *user_id,
             params: QueueActionParams::IngestIntraday(
                 metric.clone(),
-                *start_date + Duration::days(i as i64),
+                start_date + Duration::days(i64::from(i)),
             ),
         };
 
@@ -41,10 +41,10 @@ fn ingest_intraday_bulk(
 
 fn ingest_intraday<T: fitbit::IntradayMeasurement + db::Object>(
     ctx: &WorkerContext,
-    token: Token,
+    token: &Token,
     date: NaiveDate,
 ) -> Result<(), Error> {
-    let measurement = fitbit::measurement_for_day::<T>(date, &token)?;
+    let measurement = fitbit::measurement_for_day::<T>(date, token)?;
     T::insert_many(&ctx.conn, &measurement).map_err(error::ErrorInternalServerError)?;
     Ok(())
 }
@@ -61,21 +61,21 @@ fn execute_one(
                 .refresh_and_update("fitbit", &ctx.conn, user_id)
                 .map_err(error::ErrorInternalServerError)?;
             match metric {
-                fitbit::IntradayMetric::Step => ingest_intraday::<Step>(ctx, token, date.clone()),
+                fitbit::IntradayMetric::Step => ingest_intraday::<Step>(ctx, &token, *date),
                 fitbit::IntradayMetric::Calorie => {
-                    ingest_intraday::<Calorie>(ctx, token, date.clone())
+                    ingest_intraday::<Calorie>(ctx, &token, *date)
                 }
                 fitbit::IntradayMetric::Distance => {
-                    ingest_intraday::<Distance>(ctx, token, date.clone())
+                    ingest_intraday::<Distance>(ctx, &token, *date)
                 }
                 fitbit::IntradayMetric::Elevation => {
-                    ingest_intraday::<Elevation>(ctx, token, date.clone())
+                    ingest_intraday::<Elevation>(ctx, &token, *date)
                 }
-                fitbit::IntradayMetric::Floor => ingest_intraday::<Floor>(ctx, token, date.clone()),
+                fitbit::IntradayMetric::Floor => ingest_intraday::<Floor>(ctx, &token, *date),
             }
         }
         QueueActionParams::BulkIngestIntraday(metric, start_date, num_days) => {
-            ingest_intraday_bulk(ctx, user_id, metric, start_date, num_days)
+            ingest_intraday_bulk(ctx, user_id, metric, *start_date, *num_days)
         }
     }
 }
