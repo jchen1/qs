@@ -40,7 +40,7 @@ impl User {
             .on_conflict_do_nothing()
             .execute(conn)?;
 
-        Ok(User::find_one(conn, &user.id)?)
+        Ok(User::find_one_by_email(conn, &user.email)?)
     }
 
     pub fn find_one(conn: &PgConnection, id: &Uuid) -> Result<User, diesel::result::Error> {

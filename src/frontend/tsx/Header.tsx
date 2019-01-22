@@ -18,21 +18,29 @@ export default class Header extends PureComponent {
         query={gql`
           {
             user {
-              id
               email
-              name
             }
           }
         `}>
         {({ loading, error, data }) => {
           if (loading) return <p>Loading...</p>;
           if (error) return <p>Error :(</p>;
-          const { name } = data.user;
-          return (
-            <StyledHeader>
-              <H1>{name}</H1>
-            </StyledHeader>
-          );
+          const { user } = data;
+          if (user) {
+            return (
+              <StyledHeader>
+                <H1>{user.email}</H1>
+                <A href="/logout">Log out</A>
+              </StyledHeader>
+            );
+          } else {
+            return (
+              <StyledHeader>
+                <H1>Anonymous</H1>
+                <A href="/oauth/google/start">Log in</A>
+              </StyledHeader>
+            )
+          }
         }}
       </Query>
     );

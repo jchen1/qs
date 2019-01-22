@@ -11,9 +11,10 @@ export default class User extends PureComponent {
         query={gql`
           {
             user {
-              id
-              email
-              gSub
+              distances(startTime: "2019-01-20T00:00:01+00:00") {
+                time,
+                count
+              }
             }
           }
         `}>
@@ -22,20 +23,20 @@ export default class User extends PureComponent {
           if (error) return <p>Error :(</p>;
 
           const { user } = data;
+          const distances: { time: string, count: number }[] = user.distances;
           if (user)
             return (
               <div>
-                <H1>{data.user.email}</H1>
-                <P>{data.user.id}</P>
-                <A href="oauth/fitbit/start">Fitbit</A>
-                <A href="logout">Logout</A>
+                {distances.map(
+                  ({time, count}) => <P key={time}>{time} - {count}</P>
+                )}
               </div>
             );
           return (
             <div>
-              <p>
-                Anonymous - <a href="oauth/google/start">Login</a>
-              </p>
+              <P>
+                Anonymous
+              </P>
             </div>
           );
         }}

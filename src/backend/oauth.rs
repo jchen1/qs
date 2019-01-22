@@ -265,7 +265,10 @@ fn try_login(
                 info!("Logged in as {} ({})", user.id, user.email);
                 Ok(user.id.to_string())
             }
-            Err(_e) => unimplemented!(),
+            Err(e) => {
+                error!("{}", e);
+                unimplemented!()
+            },
         })
         .responder()
     } else {
