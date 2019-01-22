@@ -33,26 +33,6 @@ export default class Header extends PureComponent {
               <H1>{name}</H1>
             </StyledHeader>
           );
-          // if (loading) return <p>Loading...</p>;
-          // if (error) return <p>Error :(</p>;
-
-          // const { user } = data;
-          // if (user)
-          //   return (
-          //     <div>
-          //       <H1>{data.user.email}</H1>
-          //       <P>{data.user.id}</P>
-          //       <A href="oauth/fitbit/start">Fitbit</A>
-          //       <A href="logout">Logout</A>
-          //     </div>
-          //   );
-          // return (
-          //   <div>
-          //     <p>
-          //       Anonymous - <a href="oauth/google/start">Login</a>
-          //     </p>
-          //   </div>
-          // );
         }}
       </Query>
     );

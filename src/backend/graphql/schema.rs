@@ -1,6 +1,4 @@
-use diesel::prelude::*;
 use juniper::{FieldResult, RootNode};
-use std::ops::Deref;
 use uuid::Uuid;
 
 use super::Context;
@@ -9,115 +7,91 @@ use crate::providers::fitbit::IntradayMetric;
 use crate::queue::{QueueAction, QueueActionParams};
 use chrono::{DateTime, NaiveDate, Utc};
 
-#[derive(GraphQLInputObject)]
-#[graphql(description = "A user")]
-struct NewUser {
-    id: Uuid,
-    email: String,
-    g_sub: String,
-}
-
-#[derive(GraphQLObject)]
-#[graphql(description = "A token")]
-struct Token {
-    pub id: Uuid,
-    pub service: String,
-    pub access_token: String,
-    pub access_token_expiry: DateTime<Utc>,
-}
-
-impl From<&db::Token> for Token {
-    fn from(token: &db::Token) -> Self {
-        Token {
-            id: token.id,
-            service: token.service.clone(),
-            access_token: token.access_token.clone(),
-            access_token_expiry: token.access_token_expiry,
-        }
-    }
-}
-
-#[derive(GraphQLObject)]
-#[graphql(description = "A user")]
-struct User {
-    pub id: Uuid,
-    pub email: String,
-    pub name: String,
-    pub g_sub: String,
-    pub tokens: Vec<Token>,
-    pub steps: Vec<db::Step>,
-}
-
-impl User {
-    pub fn new(user: db::User, tokens: Vec<db::Token>, steps: Vec<db::Step>) -> User {
-        User {
-            id: user.id,
-            email: user.email,
-            name: "Jeff Chen".to_string(), // todo
-            g_sub: user.g_sub,
-            tokens: tokens.iter().map(|t| Token::from(t)).collect(),
-            steps: steps,
-        }
-    }
-}
-
 pub struct QueryRoot;
 
 graphql_object!(QueryRoot: Context |&self| {
-
-    field user(&executor, id: Option<String>, start_time: Option<DateTime<Utc>>, end_time: Option<DateTime<Utc>>) -> FieldResult<Option<User>> {
+    field user(&executor, id: Option<Uuid>) -> FieldResult<Option<db::User>> {
         let conn = &executor.context().conn;
         let user = match id {
-            Some(id) => db::User::find_one(conn, &Uuid::parse_str(&id)?).ok(),
+            Some(id) => db::User::find_one(conn, &id).ok(),
             None => executor.context().user.clone()
         };
 
-        if let Some(user) = user {
-            let tokens = db::Token::belonging_to(&user).load::<db::Token>(conn.deref()).ok();
-            let fitbit_token = db::Token::find_by_uid_service(conn, &user.id, "fitbit").map_err(|_| "no token!".to_owned())?;
-            let steps = db::Step::for_period(conn, &user.id, &start_time.unwrap_or(Utc::today().and_hms(0, 0, 0)), &end_time.unwrap_or(Utc::now())).unwrap_or(vec![]);
+        Ok(user)
+    }
+});
 
-            let only_populated = steps.into_iter().filter(|s| s.count > 0).collect();
+graphql_object!(db::User: Context as "User" |&self| {
+    field steps(&executor, start_time: Option<DateTime<Utc>>, end_time: Option<DateTime<Utc>>, only_populated = true: bool) -> FieldResult<Vec<db::Step>> {
+        let conn = &executor.context().conn;
+        let steps = db::Step::for_period(conn, &self.id, &start_time.unwrap_or(Utc::today().and_hms(0, 0, 0)), &end_time.unwrap_or(Utc::now())).unwrap_or(vec![])
+            .into_iter()
+            .filter(|s| !only_populated || s.count > 0)
+            .collect();
 
-            Ok(Some(User::new(user, tokens.unwrap_or(vec![]), only_populated)))
-        } else {
-            Ok(None)
-        }
+        Ok(steps)
+    }
+
+    field floors(&executor, start_time: Option<DateTime<Utc>>, end_time: Option<DateTime<Utc>>, only_populated = true: bool) -> FieldResult<Vec<db::Floor>> {
+        let conn = &executor.context().conn;
+        let floors = db::Floor::for_period(conn, &self.id, &start_time.unwrap_or(Utc::today().and_hms(0, 0, 0)), &end_time.unwrap_or(Utc::now())).unwrap_or(vec![])
+            .into_iter()
+            .filter(|f| !only_populated || f.count > 0)
+            .collect();
+
+        Ok(floors)
+    }
+
+    field distances(&executor, start_time: Option<DateTime<Utc>>, end_time: Option<DateTime<Utc>>, only_populated = true: bool) -> FieldResult<Vec<db::Distance>> {
+        let conn = &executor.context().conn;
+        let distances = db::Distance::for_period(conn, &self.id, &start_time.unwrap_or(Utc::today().and_hms(0, 0, 0)), &end_time.unwrap_or(Utc::now())).unwrap_or(vec![])
+            .into_iter()
+            .filter(|d| !only_populated || d.count > 0.0)
+            .collect();
+
+        Ok(distances)
+    }
+
+    field elevations(&executor, start_time: Option<DateTime<Utc>>, end_time: Option<DateTime<Utc>>, only_populated = true: bool) -> FieldResult<Vec<db::Elevation>> {
+        let conn = &executor.context().conn;
+        let elevations = db::Elevation::for_period(conn, &self.id, &start_time.unwrap_or(Utc::today().and_hms(0, 0, 0)), &end_time.unwrap_or(Utc::now())).unwrap_or(vec![])
+            .into_iter()
+            .filter(|e| !only_populated || e.count > 0.0)
+            .collect();
+
+        Ok(elevations)
+    }
+
+    field calories(&executor, start_time: Option<DateTime<Utc>>, end_time: Option<DateTime<Utc>>, only_populated = true: bool) -> FieldResult<Vec<db::Calorie>> {
+        let conn = &executor.context().conn;
+        let calories = db::Calorie::for_period(conn, &self.id, &start_time.unwrap_or(Utc::today().and_hms(0, 0, 0)), &end_time.unwrap_or(Utc::now())).unwrap_or(vec![])
+            .into_iter()
+            .filter(|c| !only_populated || c.count > 0.0)
+            .collect();
+
+        Ok(calories)
+    }
+
+    field email() -> &str {
+        &self.email
+    }
+
+    field id() -> &Uuid {
+        &self.id
     }
 });
 
 pub struct MutationRoot;
 
 graphql_object!(MutationRoot: Context |&self| {
-    field create_user(&executor, new_user: NewUser) -> FieldResult<User> {
-        Ok(User{
-            id: Uuid::new_v4(),
-            email: new_user.email,
-            name: "Jeff Chen".to_string(),
-            g_sub: new_user.g_sub,
-            tokens: vec![],
-            steps: vec![]
-        })
-    }
-
-    field ingest_intraday(&executor, service: String, measurement: String, date: NaiveDate, num_days: Option<i32>) -> FieldResult<bool> {
+    field ingest_intraday(&executor, service: String, measurement: IntradayMetric, date: Option<NaiveDate>, num_days = 1: i32) -> FieldResult<bool> {
         let producer = &executor.context().producer;
         let user_id = executor.context().user.clone().ok_or("Not logged in".to_owned())?.id;
 
-        let num_days = num_days.unwrap_or(1);
         match (service.as_str(), num_days < 0) {
             ("fitbit", false) => Ok(()),
             ("fitbit", true) => Err("num_days must be positive".to_owned()),
             _ => Err("only fitbit is supported".to_owned())
-        }?;
-
-        let measurement = match measurement.as_str() {
-            "steps" => Ok(IntradayMetric::Step),
-            "calories" => Ok(IntradayMetric::Calorie),
-            "distances" => Ok(IntradayMetric::Distance),
-            "elevations" => Ok(IntradayMetric::Elevation),
-            "floors" => Ok(IntradayMetric::Floor),
-            _ => Err("unsupported metric!".to_owned())
         }?;
 
         let action = QueueAction {
@@ -125,7 +99,8 @@ graphql_object!(MutationRoot: Context |&self| {
             user_id: user_id.clone(),
             params: QueueActionParams::BulkIngestIntraday(
                 measurement,
-                date,
+                // TODO naive_local or naive_utc?
+                date.unwrap_or(Utc::now().naive_local().date()),
                 num_days as u32
             )
         };
