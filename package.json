@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@types/jest": "^23.3.10",
+    "@types/lodash": "^4.14.120",
     "@types/node": "^10.12.18",
     "@types/react": "^16.7.18",
     "@types/react-dom": "^16.0.11",
@@ -11,6 +12,7 @@
     "apollo-boost": "^0.1.23",
     "graphql": "^14.0.2",
     "http-proxy-middleware": "^0.19.1",
+    "lodash": "^4.17.11",
     "node-sass": "^4.11.0",
     "prettier": "^1.15.3",
     "react": "^16.7.0",

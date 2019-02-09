@@ -3,6 +3,7 @@ import React, { PureComponent } from 'react';
 import { Query } from 'react-apollo';
 import { H1, P, A } from './shared/Text';
 import gql from 'graphql-tag';
+import _ from 'lodash';
 
 export default class User extends PureComponent {
   render() {
@@ -11,9 +12,10 @@ export default class User extends PureComponent {
         query={gql`
           {
             user {
-              distances(startTime: "2019-01-20T00:00:01+00:00") {
+              moods {
                 time,
-                count
+                mood,
+                note
               }
             }
           }
@@ -23,12 +25,15 @@ export default class User extends PureComponent {
           if (error) return <p>Error :(</p>;
 
           const { user } = data;
-          const distances: { time: string, count: number }[] = user.distances;
+          const moods: { time: string, mood: number, note: string }[] = _.reverse(_.sortBy(user.moods, ['time']));
           if (user)
             return (
               <div>
-                {distances.map(
-                  ({time, count}) => <P key={time}>{time} - {count}</P>
+                {moods.map(
+                  ({time, mood, note}) => <div key={time}>
+                    <P>{time} - {mood}</P>
+                    <P>{note}</P>
+                  </div>
                 )}
               </div>
             );

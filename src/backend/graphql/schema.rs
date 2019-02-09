@@ -2,7 +2,7 @@ use juniper::{FieldResult, RootNode};
 use uuid::Uuid;
 
 use super::Context;
-use crate::db;
+use crate::db::{self, Object};
 use crate::providers::fitbit::IntradayMetric;
 use crate::queue::{QueueAction, QueueActionParams};
 use chrono::{DateTime, NaiveDate, Utc};
@@ -72,6 +72,15 @@ graphql_object!(db::User: Context as "User" |&self| {
         Ok(calories)
     }
 
+    field moods(&executor, start_time: Option<DateTime<Utc>>, end_time: Option<DateTime<Utc>>) -> FieldResult<Vec<db::Mood>> {
+        let conn = &executor.context().conn;
+        let moods = db::Mood::for_period(conn, &self.id, &start_time.unwrap_or_else(|| Utc::today().and_hms(0, 0, 0)), &end_time.unwrap_or_else(Utc::now)).unwrap_or_else(|_| vec![])
+            .into_iter()
+            .collect();
+
+        Ok(moods)
+    }
+
     field email() -> &str {
         &self.email
     }
@@ -106,6 +115,24 @@ graphql_object!(MutationRoot: Context |&self| {
         };
 
         producer.push(action)?;
+
+        Ok(true)
+    }
+
+    field add_mood(&executor, mood: i32, note: String) -> FieldResult<bool> {
+        let user_id = executor.context().user.clone().ok_or_else(|| "Not logged in".to_owned())?.id;
+        let conn = &executor.context().conn;
+
+        if mood <= 0 || mood > 10 {
+            Err("mood must be a number between 1 and 10".to_owned())
+        } else { Ok(()) }?;
+
+        db::Mood::insert(conn, &db::Mood {
+            time: Utc::now(),
+            mood: mood,
+            note: note,
+            user_id: user_id
+        })?;
 
         Ok(true)
     }

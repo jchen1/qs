@@ -21,6 +21,9 @@ pub mod user;
 pub use crate::db::token::*;
 pub use crate::db::user::*;
 
+pub mod mood;
+pub use crate::db::mood::*;
+
 pub mod schema;
 
 pub type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
